@@ -2,6 +2,8 @@ import java.io.*;
 import java.net.*;
 import java.sql.SQLOutput;
 
+
+
 public class Servidor {
     public static void main(String[] args){
         try{
@@ -41,19 +43,9 @@ public class Servidor {
                         System.out.println(comando);
                         // Responder a los comandos del cliente
                         if (comando.startsWith("LS")) {
-                            //Obtenemos el Array de files
-                            File [] ficheros = f2.listFiles();
-                            //Iteramos sobre el Array
-                            for (File fs: ficheros) {
-                                if (fs.isFile()) {
-                                    System.out.println(fs.getName() + " es un fichero");
-                                }
-                                if (fs.isDirectory()) {
-                                    System.out.println(fs.getName() + " es un directorio");
-                                }
-                            }
+                            listFiles(f2,"");
                         } else if (comando.startsWith("PWD")) {
-                            String texto=ruta_archivos; //Obtenemos la ruta general
+                            String texto= f2.getAbsolutePath(); //Obtenemos la ruta general
                             String dirAbs=texto.replace(f.getAbsolutePath(),""); //Conservamos unicamente la direccion de la carpeta Drive
                             System.out.println(dirAbs);
                         } else if (comando.startsWith("MKDIR")) {
@@ -61,16 +53,16 @@ public class Servidor {
                             String directorio = texto.replace("MKDIR ", ""); // Elimina el comando para tener unicamente el nombre
                             //Creacion del directorio
                             rutaLocal=directorio+"\\";
-                            ruta_archivos=ruta_archivos+rutaLocal;
-                            System.out.println(ruta_archivos);
-                            f2=new File(ruta_archivos);
-                            f2.mkdirs();
+                            String ruta_nueva=f2.getAbsolutePath()+"\\"+rutaLocal;
+                            f2=new File(ruta_nueva);
+                            f2.mkdirs();    //Creamos el directorio
                             f2.setWritable(true);
+                            System.out.println(f2.getAbsolutePath());
                         } else if (comando.startsWith("DELETE")) {
                             String texto = comando;
                             String directorio = texto.replace("DELETE ", ""); // Elimina el comando para tener unicamente el nombre
                             //Instanciamos la clase file con la ruta del fichero
-                            File miFichero = new File(ruta_archivos + directorio);
+                            File miFichero = new File(f2.getAbsolutePath() + "\\"+ directorio);
                             //Comprobamos si existe el fichero
                             if (miFichero.exists()) {
                                 //Borramos el fichero
@@ -79,9 +71,27 @@ public class Servidor {
                                 System.out.println(miFichero.getName() + " NO existe");
                             }
                         } else if(comando.startsWith("CD")) {
-                            String texto=comando;
-                            String nuevaRuta=texto.replace("CD ",""); // Elimina el comando para tener unicamente la direccion
-                            ruta_archivos=f.getAbsolutePath()+nuevaRuta+"\\";
+                            String direccion_actual=f2.getAbsolutePath();
+                            String texto=comando.replace("CD ",""); //Para obtener unicamente lo que escribio el usuario
+                            String nuevaRuta;
+                            if(texto.startsWith("\\")){
+                                nuevaRuta=f.getAbsolutePath()+texto;
+                                //Comprobamos si esa ruta existe
+                                f2=new File(nuevaRuta);
+                                if(!f2.isDirectory()){
+                                    System.out.println("No se encontro la direccion");
+                                    f2=new File(direccion_actual+"\\");//En caso de no encontrar la ruta especificada, volvemos a apuntar a la actual
+                                }
+                            }else {
+                                nuevaRuta = f2.getAbsolutePath() + "\\" + texto;
+                                //Comprobamos si esa ruta existe
+                                f2=new File(nuevaRuta);
+                                if(!f2.isDirectory()){
+                                    System.out.println("No se encontro la direccion");
+                                    f2=new File(direccion_actual+"\\");//En caso de no encontrar la ruta especificada, volvemos a apuntar a la actual
+                                }
+                            }
+
                         } else if (comando.startsWith("QUIT")) {
 
                             break;
@@ -93,6 +103,21 @@ public class Servidor {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+    public static void listFiles(File dir, String tabulacion) {
+        File[] files = dir.listFiles(); // Obtenemos archivos y directorios
+        if (files != null) { // Verificamos que el directorio no esté vacío
+            for (File file : files) {
+                String resultado = tabulacion + file.getName(); // Solo mostramos el nombre del archivo o directorio
+                if (file.isDirectory()) {
+                    resultado=resultado+"\\"; //Si es un directorio agregamos \ al final para identificarlo
+                }
+                System.out.println(resultado);
+                if (file.isDirectory()) { // Si es un directorio, hacemos recursión
+                    listFiles(file, tabulacion + "\t"); // Se agrega una tabulación extra
+                }
+            }
         }
     }
 }
