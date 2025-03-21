@@ -35,6 +35,7 @@ public class Servidor {
                 while(true){
 
                     String comando=reader.readLine();
+                    comando = comando.toUpperCase();
                     if(comando.compareToIgnoreCase("QUIT")==0){
                         System.out.println("Cliente cierra la conexion");
                         reader.close();
