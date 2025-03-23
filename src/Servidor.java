@@ -6,7 +6,7 @@ import java.util.List;
 public class Servidor {
     public static void main(String[] args) {
         try {
-            // Creamos el Socket de control
+            // Creamos el Socket de control1
             ServerSocket s1 = new ServerSocket(21); // Asignamos el puerto 21, que es el de control para FTP
             s1.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             System.out.println("Servidor iniciado en el puerto " + s1.getLocalPort());
