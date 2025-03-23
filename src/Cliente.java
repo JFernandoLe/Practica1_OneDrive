@@ -6,34 +6,33 @@ import java.sql.SQLOutput;
 import java.util.Scanner;
 
 public class Cliente {
-    public static void main(String[] args){
+    public static void main(String[] args) {
         // Secuencias para cambiar colores
         String rojo = "\u001B[31m";
         String verde = "\u001B[32m";
         String azul = "\u001B[34m";
         String reset = "\u001B[0m";
-        //Scanner de Java
+        // Scanner de Java
         Scanner scanner = new Scanner(System.in);
-        try{
-            String dir="127.0.0.1"; //Direccion del servidor
-            int puerto=21;//Puerto de control para FTP
-            Socket c1=new Socket(dir,puerto);   //Hacemos la conexion al Socket
-            BufferedReader reader=new BufferedReader(new InputStreamReader(c1.getInputStream(),"ISO-8859-1"));
-            PrintWriter writer=new PrintWriter(new OutputStreamWriter(c1.getOutputStream(),"ISO-8859-1"));
-            //Leemos la bienvenida del servidor
+        try {
+            String dir = "127.0.0.1"; // Direccion del servidor
+            int puerto = 21;// Puerto de control para FTP
+            Socket c1 = new Socket(dir, puerto); // Hacemos la conexion al Socket
+            BufferedReader reader = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
+            // Leemos la bienvenida del servidor
 
-            System.out.println(azul+reader.readLine()+reset);
-            System.out.println(azul+"Escribe un comando: "+reset);
-            //Flujos para leer respuestas de  comandos
-            BufferedReader readerCMD=new BufferedReader(new InputStreamReader(c1.getInputStream(),"ISO-8859-1"));
+            System.out.println(azul + reader.readLine() + reset);
+            System.out.println(azul + "Escribe un comando: " + reset);
+            // Flujos para leer respuestas de comandos
+            BufferedReader readerCMD = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
 
-
-            //Control para Ingresar y enviar comandos
+            // Control para Ingresar y enviar comandos
             while (true) {
-                //Leemos la entrada del comando
-                String comando= scanner.nextLine();
-                if(comando.compareToIgnoreCase("HELP")==0){
-                    //Comandos
+                // Leemos la entrada del comando
+                String comando = scanner.nextLine();
+                if (comando.compareToIgnoreCase("HELP") == 0) {
+                    // Comandos
                     System.out.println(azul + "PWD" + reset + " - Mostrar directorio actual");//
                     System.out.println(azul + "LS" + reset + " - Listar archivos y carpetas");//
                     System.out.println(azul + "MKDIR" + reset + " - Crea el directorio indicado de forma remota");//
@@ -47,19 +46,19 @@ public class Cliente {
                     System.out.println(azul + "QUIT" + reset + " - Cerrar sesión");//
                 }
 
-                writer.println(comando); //Enviar comando al servidor
-                writer.flush(); //Se envia de inmediato
-                if(comando.compareToIgnoreCase("LS")==0){
+                writer.println(comando); // Enviar comando al servidor
+                writer.flush(); // Se envia de inmediato
+                if (comando.compareToIgnoreCase("LS") == 0) {
                     String linea;
                     while (!(linea = reader.readLine()).equals("END_LIST")) { // Espera hasta recibir "END_LIST"
-                        System.out.println(azul+linea+reset);
+                        System.out.println(azul + linea + reset);
                     }
-                }else{
-                    System.out.println(azul+reader.readLine()+reset);   //Obtenemos la respuesta del comando
+                } else {
+                    System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
                 }
 
-                if(comando.compareToIgnoreCase("QUIT")==0){
-                    //Cerramos la conexion
+                if (comando.compareToIgnoreCase("QUIT") == 0) {
+                    // Cerramos la conexion
                     System.out.println("Cerrando sesion...");
                     writer.close();
                     reader.close();
