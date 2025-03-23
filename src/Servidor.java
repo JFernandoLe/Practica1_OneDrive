@@ -24,7 +24,7 @@ public class Servidor {
                 System.out.println("Cliente conectado desde " + c1.getInetAddress() + ":" + c1.getPort());
                 BufferedReader reader = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
-                writer.println("Bienvenido a EscromDrive");
+                writer.println("225 Conexión de datos abierta; no hay transferencia en proceso. Bienvenido a EscromDrive");
                 writer.flush();
 
                 while (true) {
