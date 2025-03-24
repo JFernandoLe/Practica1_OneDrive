@@ -41,15 +41,17 @@ public class Cliente {
                     System.out.println(azul + "RENAME <archivo>" + reset + " - Cambia el nombre a un archivo");
                     System.out.println(azul + "QUIT" + reset + " - Cerrar sesión");//
                 }
-                writer.println(comando); // Enviar comando al servidor
-                writer.flush(); // Se envia de inmediato
+                if(!comando.toUpperCase().startsWith("PUT")){  //No enviamos PUT, hasta que comprobemos que el archivo que se desea subir exista;
+                    writer.println(comando); // Enviar comando al servidor
+                    writer.flush(); // Se envia de inmediato
+                    System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
+                }
+
                 if (comando.compareToIgnoreCase("LS") == 0) {
                     String linea;
                     while (!(linea = reader.readLine()).equals("END_LIST")) { // Espera hasta recibir "END_LIST"
                         System.out.println(azul + linea + reset);
                     }
-                } else {
-                    System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
                 }
 
                 if (comando.compareToIgnoreCase("QUIT") == 0) {
@@ -64,23 +66,24 @@ public class Cliente {
                 if(comando.toUpperCase().startsWith("PUT")){
                     String texto = comando.replaceAll("(?i)PUT ", "").trim(); // Elimina "PUT" y espacios extra
                     File f = new File(texto);
-                    System.out.println(f.getAbsolutePath());
                     if (!f.isFile()) {
-                        System.out.println("550 No se encontró el directorio");
+                        System.out.println(azul+"550 No se encontró el directorio"+reset);
 
                     } else{
-                        System.out.println("si se ecn");
+                        writer.println(comando); // Enviar comando al servidor
+                        writer.flush(); // Se envia de inmediato
+                        System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
                         try{
                             int pto=20;
                             Socket c2=new Socket(dir,pto);
-                            System.out.println("Conexion con el socket de archivos");
+                            System.out.println(azul+"Conexion con el socket de archivos");
                             //JFileChooser jf=new JFileChooser();
                             //int r=jf.showOpenDialog(null);
                             //jf.setRequestFocusEnabled(true);
                             String nombre=f.getName();
                             String path=f.getAbsolutePath();
                             long tam=f.length();
-                            System.out.println("Preparandose para enviar archivo"+path+" de "+tam+" bytes\n\n");
+                            System.out.println("Preparandose para enviar archivo: "+path+" de "+tam+" bytes\n");
                             DataOutputStream dos=new DataOutputStream(c2.getOutputStream());
                             DataInputStream dis=new DataInputStream(new FileInputStream(path));
                             dos.writeUTF(nombre);
@@ -92,21 +95,19 @@ public class Cliente {
                             while(enviados<tam){
                                 byte[] b=new byte[3500];
                                 l=dis.read(b);
-                                System.out.println("enviados: "+l);
                                 dos.write(b,0,l);
                                 dos.flush();
                                 enviados=enviados+l;
                                 porcentaje=(int)((enviados*100)/tam);
                                 System.out.println("\rEnviado el "+porcentaje+"% del archivo");
                             }
-                            System.out.println("\nArchivo enviado");
+                            System.out.println("\nArchivo enviado"+reset);
                             dis.close();
                             dos.close();
                             c2.close();
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
-                        System.out.println("terminamos");
                     }
 
                 }
