@@ -11,7 +11,7 @@ public class Servidor {
             ServerSocket s1 = new ServerSocket(21); // Asignamos el puerto 21, que es el de control para FTP
             s1.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             System.out.println("Servidor iniciado en el puerto " + s1.getLocalPort());
-            // Creacion de la carpeta del usuario
+            // Creacion de la carpeta Drive
             File f = new File("");
             String ruta = f.getAbsolutePath();
             String carpeta = "drive";
@@ -20,6 +20,18 @@ public class Servidor {
             File f2 = new File(ruta_archivos);
             f2.mkdirs();
             f2.setWritable(true);
+            //Creacion de la carpeta local
+            File t=new File("");
+            String rutaT="C:";
+            String carpetaT="local";
+            String rutaLocalT=carpetaT+"\\";
+            String ruta_archivosT=rutaT+"\\"+rutaLocalT;
+            File t2=new File(ruta_archivosT);
+            t2.mkdirs();
+            t2.setWritable(true);
+            boolean estado=false; //false=drive, true=local
+            File x2=f2; //Inciamos por defecto con la ruta drive
+
             for (;;) {
                 Socket c1 = s1.accept();
                 System.out.println("Cliente conectado desde " + c1.getInetAddress() + ":" + c1.getPort());
@@ -45,23 +57,42 @@ public class Servidor {
                         c1.close();
 
                         System.exit(0);
-                    } else {
+                    }
+                    else {
                         System.out.println("Comando recibido: ");
                         System.out.println(comando);
                         // Responder a los comandos del cliente
                         if (comando.toUpperCase().startsWith("LS")) {
 
-                            List<String> resultados = listFiles(f2, "");
-                            for (String linea : resultados) {
-                                System.out.println(linea);
-                                writer.println(linea);
+                            List<String> resultados = listFiles(x2, "");
+                            if(resultados != null && !resultados.isEmpty()){
+                                System.out.println("Entro");
+                                for (String linea : resultados) {
+                                    System.out.println(linea);
+                                    writer.println(linea);
+                                    writer.flush();
+                                }
+                            }else{
+                                writer.println("550: Directorio Vacio"); // Indicador de fin de lista
                                 writer.flush();
                             }
+
                             writer.println("END_LIST"); // Indicador de fin de lista
                             writer.flush();
 
-                        } else if (comando.toUpperCase().startsWith("PWD")) {
-                            String texto = f2.getAbsolutePath(); // Obtenemos la ruta general
+                        }else if(comando.toUpperCase().startsWith("CWD")){
+                            estado=!estado;
+                            if(estado){
+                                x2=t2;
+                            }else{
+                                x2=f2;
+                            }
+
+                            writer.println("Se cambio el modo correctamente"); // Indicador de fin de lista
+                            writer.flush();
+                        }
+                        else if (comando.toUpperCase().startsWith("PWD")) {
+                            String texto = x2.getAbsolutePath(); // Obtenemos la ruta general
                             String dirAbs = texto.replace(f.getAbsolutePath(), ""); // Conservamos unicamente la
                             // direccion de la carpeta Drive
                             writer.println(dirAbs);
@@ -70,7 +101,7 @@ public class Servidor {
                             String texto = comando;
                             String directorio = texto.replaceAll("(?i)MKDIR ", "");
                             // Creación del directorio
-                            String ruta_nueva = f2.getAbsolutePath() + "\\" + directorio;
+                            String ruta_nueva = x2.getAbsolutePath() + "\\" + directorio;
                             File nuevoDirectorio = new File(ruta_nueva);
                             if (nuevoDirectorio.mkdirs()) { // Creamos el directorio
                                 writer.println("Se creó el directorio correctamente");
@@ -83,7 +114,7 @@ public class Servidor {
                             String directorio = texto.replaceAll("(?i)DELETE ", "");// unicamente el nombre
                             // Instanciamos la clase file con la ruta del fichero
                             System.out.println(directorio);
-                            File miFichero = new File(f2.getAbsolutePath() + "\\" + directorio);
+                            File miFichero = new File(x2.getAbsolutePath() + "\\" + directorio);
                             System.out.println(miFichero.getAbsolutePath());
                             // Comprobamos si existe el fichero
                             if (miFichero.exists()) {
@@ -102,21 +133,21 @@ public class Servidor {
                                 writer.flush();
                             }
                         } else if (comando.toUpperCase().startsWith("CD")) {
-                            String direccion_actual = f2.getAbsolutePath();
+                            String direccion_actual = x2.getAbsolutePath();
                             String texto = comando.replaceAll("(?i)CD ", "").trim(); // Elimina "CD" y espacios extra
                             if (texto.equals("..")) {
                                 // Evitar salir del directorio "drive"
-                                if (f2.getName().equalsIgnoreCase("drive")) {
+                                if (x2.getName().equalsIgnoreCase("drive")||x2.getName().equalsIgnoreCase("local")) {
                                     writer.println("No se puede retroceder más, ya estamos en el directorio raíz.");
                                     writer.flush();
                                 } else {
                                     // Ir al directorio padre
-                                    File directorioPadre = f2.getParentFile();
+                                    File directorioPadre = x2.getParentFile();
                                     if (directorioPadre != null) {
-                                        f2 = directorioPadre;
+                                        x2 = directorioPadre;
                                         System.out.println(ruta_archivos);
                                         System.out.println(rutaLocal);
-                                        writer.println("Se cambió correctamente al directorio: " + f2.getAbsolutePath().replace(f.getAbsolutePath(),""));
+                                        writer.println("Se cambió correctamente al directorio: " + x2.getAbsolutePath().replace(f.getAbsolutePath(),""));
                                         writer.flush();
                                     } else {
                                         writer.println("No se puede retroceder, no existe directorio padre.");
@@ -126,14 +157,14 @@ public class Servidor {
                             } else if (texto.startsWith("\\")) {
                                 // Ruta absoluta
                                 String nuevaRuta = f.getAbsolutePath() + texto;
-                                f2 = new File(nuevaRuta);
-                                if (!f2.isDirectory()) {
+                                x2 = new File(nuevaRuta);
+                                if (!x2.isDirectory()) {
                                     System.out.println("550 No se encontró la dirección");
                                     writer.println("550 No se encontró la dirección");
                                     writer.flush();
-                                    f2 = new File(direccion_actual); // Volver al directorio anterior
+                                    x2 = new File(direccion_actual); // Volver al directorio anterior
                                 } else {
-                                    writer.println("Se cambió correctamente al directorio: " + f2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
+                                    writer.println("Se cambió correctamente al directorio: " + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
                                     writer.flush();
                                 }
                             }else if(texto.equals("")){
@@ -141,15 +172,15 @@ public class Servidor {
                                 writer.flush();
                             } else {
                                 // Ruta relativa
-                                String nuevaRuta = f2.getAbsolutePath() + "\\" + texto;
-                                f2 = new File(nuevaRuta);
-                                if (!f2.isDirectory()) {
+                                String nuevaRuta = x2.getAbsolutePath() + "\\" + texto;
+                                x2 = new File(nuevaRuta);
+                                if (!x2.isDirectory()) {
                                     System.out.println("550 No se encontró la dirección");
                                     writer.println("550 No se encontró la dirección");
                                     writer.flush();
-                                    f2 = new File(direccion_actual); // Volver al directorio anterior
+                                    x2 = new File(direccion_actual); // Volver al directorio anterior
                                 } else {
-                                    writer.println("Se cambió correctamente al directorio: " + f2.getAbsolutePath().replace(f.getAbsolutePath(),""));
+                                    writer.println("Se cambió correctamente al directorio: " + x2.getAbsolutePath().replace(f.getAbsolutePath(),""));
                                     writer.flush();
                                 }
                             }
@@ -189,26 +220,9 @@ public class Servidor {
                             }catch (Exception e){
                                 e.printStackTrace();
                             }
-                        } else if (comando.toUpperCase().startsWith("MPUT")) {
-                            String[] archivos = comando.replace("MPUT ", "").trim().split(" ");
-                            for (String nombreArchivo : archivos) {
-                                File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
-                                try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(archivo))) {
-                                    byte[] buffer = new byte[4096];
-                                    int bytesRead;
-                                    InputStream inputStream = c1.getInputStream();
-                                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                                        bos.write(buffer, 0, bytesRead);
-                                    }
-                                    writer.println("Archivo " + nombreArchivo + " subido correctamente.");
-                                } catch (IOException e) {
-                                    writer.println("Error al subir el archivo " + nombreArchivo);
-                                }
-                            }
-                            writer.flush();
                         } else if (comando.toUpperCase().startsWith("GET")) {
                             String nombreArchivo = comando.replace("GET ", "").trim();
-                            File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
+                            File archivo = new File(x2.getAbsolutePath() + "\\" + nombreArchivo);
                             if (archivo.exists() && archivo.isFile()) {
                                 try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(archivo))) {
                                     byte[] buffer = new byte[4096];
@@ -228,7 +242,7 @@ public class Servidor {
                         } else if (comando.toUpperCase().startsWith("MGET")) {
                             String[] archivos = comando.replace("MGET ", "").trim().split(" ");
                             for (String nombreArchivo : archivos) {
-                                File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
+                                File archivo = new File(x2.getAbsolutePath() + "\\" + nombreArchivo);
                                 if (archivo.exists() && archivo.isFile()) {
                                     try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(archivo))) {
                                         byte[] buffer = new byte[4096];

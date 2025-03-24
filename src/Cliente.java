@@ -1,4 +1,3 @@
-import javax.swing.*;
 import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
@@ -31,17 +30,18 @@ public class Cliente {
                     // Comandos
                     System.out.println(azul + "PWD" + reset + " - Mostrar directorio actual");//
                     System.out.println(azul + "LS" + reset + " - Listar archivos y carpetas");//
-                    System.out.println(azul + "MKDIR" + reset + " - Crea el directorio indicado de forma remota");//
+                    System.out.println(azul + "MKDIR <directorio>" + reset + " - Crea el directorio indicado de forma remota");//
                     System.out.println(azul + "CD <directorio>" + reset + " - Cambiar de directorio"); //
                     System.out.println(azul + "GET <archivo>" + reset + " - Descargar un archivo");
                     System.out.println(azul + "MGET <archivos>" + reset + " - Descargar multiples archivos");
                     System.out.println(azul + "PUT <archivo>" + reset + " - Subir un archivo");
                     System.out.println(azul + "MPUT <archivos>" + reset + " - Subir multiples archivos");
-                    System.out.println(azul + "DELETE <archivo>" + reset + " - Eliminar un archivo");//
+                    System.out.println(azul + "DELETE <archivo/directorio00>" + reset + " - Eliminar un archivo");//
                     System.out.println(azul + "RENAME <archivo>" + reset + " - Cambia el nombre a un archivo");
+                    System.out.println(azul + "CWD - Cambia entre directorio local/drive");
                     System.out.println(azul + "QUIT" + reset + " - Cerrar sesión");//
                 }
-                if(!comando.toUpperCase().startsWith("PUT")){  //No enviamos PUT, hasta que comprobemos que el archivo que se desea subir exista;
+                if(!(comando.toUpperCase().startsWith("PUT")||comando.toUpperCase().startsWith("MPUT"))){  //No enviamos PUT, hasta que comprobemos que el archivo que se desea subir exista;
                     writer.println(comando); // Enviar comando al servidor
                     writer.flush(); // Se envia de inmediato
                     System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
@@ -77,9 +77,6 @@ public class Cliente {
                             int pto=20;
                             Socket c2=new Socket(dir,pto);
                             System.out.println(azul+"Conexion con el socket de archivos");
-                            //JFileChooser jf=new JFileChooser();
-                            //int r=jf.showOpenDialog(null);
-                            //jf.setRequestFocusEnabled(true);
                             String nombre=f.getName();
                             String path=f.getAbsolutePath();
                             long tam=f.length();
@@ -109,9 +106,57 @@ public class Cliente {
                             e.printStackTrace();
                         }
                     }
+                }//PUT
+                if (comando.toUpperCase().startsWith("MPUT")) {
+                    String texto = comando.replaceAll("(?i)MPUT ", "").trim(); // Elimina "MPUT" y espacios extra
+                    String[] archivos = texto.split(","); // Divide los nombres de archivos por comas
+                    for (String archivo : archivos) {
+                        File f = new File(archivo.trim());
+                        if (!f.isFile()) {
+                            System.out.println(azul + "550 No se encontró el archivo: " + archivo + reset);
+                        } else {
+                            writer.println("PUT " + archivo.trim()); // Enviar comando al servidor
+                            writer.flush();
+                            System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
+                            try {
+                                int pto = 20;
+                                Socket c2 = new Socket(dir, pto);
+                                System.out.println(azul + "Conexión con el socket de archivos establecida");
 
+                                String nombre = f.getName();
+                                String path = f.getAbsolutePath();
+                                long tam = f.length();
+                                System.out.println("Preparándose para enviar archivo: " + path + " de " + tam + " bytes");
+
+                                DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
+                                DataInputStream dis = new DataInputStream(new FileInputStream(path));
+
+                                dos.writeUTF(nombre);
+                                dos.flush();
+                                dos.writeLong(tam);
+                                dos.flush();
+
+                                long enviados = 0;
+                                int l = 0, porcentaje = 0;
+                                byte[] buffer = new byte[3500];
+
+                                while (enviados < tam) {
+                                    l = dis.read(buffer);
+                                    dos.write(buffer, 0, l);
+                                    dos.flush();
+                                    enviados += l;
+                                    porcentaje = (int) ((enviados * 100) / tam);
+                                }
+                                System.out.println("Archivo " + nombre + " enviado con éxito\n" + reset);
+                                dis.close();
+                                dos.close();
+                                c2.close();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
                 }
-
             }
         } catch (Exception e) {
             e.printStackTrace();
