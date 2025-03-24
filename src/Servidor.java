@@ -6,7 +6,7 @@ import java.util.List;
 public class Servidor {
     public static void main(String[] args) {
         try {
-            // Creamos el Socket de control1
+            // Creamos el Socket de control
             ServerSocket s1 = new ServerSocket(21); // Asignamos el puerto 21, que es el de control para FTP
             s1.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             System.out.println("Servidor iniciado en el puerto " + s1.getLocalPort());
@@ -65,7 +65,7 @@ public class Servidor {
                             writer.flush();
                         } else if (comando.toUpperCase().startsWith("MKDIR")) {
                             String texto = comando;
-                            String directorio = comando.replaceAll("(?i)MKDIR ", "");
+                            String directorio = texto.replaceAll("(?i)MKDIR ", "");
                             // Creación del directorio
                             String ruta_nueva = f2.getAbsolutePath() + "\\" + directorio;
                             File nuevoDirectorio = new File(ruta_nueva);
