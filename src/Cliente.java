@@ -22,8 +22,6 @@ public class Cliente {
 
             System.out.println(azul + reader.readLine() + reset);
             System.out.println(azul + "Escribe un comando: " + reset);
-            // Flujos para leer respuestas de comandos
-            BufferedReader readerCMD = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
 
             // Control para Ingresar y enviar comandos
             while (true) {
@@ -63,16 +61,22 @@ public class Cliente {
                     System.exit(0);
                 }
 
-                if(comando.compareToIgnoreCase("PUT")==0){
-                    try{
-                        int pto=20;
-                        Socket c2=new Socket(dir,pto);
-                        System.out.println("Conexion con el socket de archivos");
-                        JFileChooser jf=new JFileChooser();
-                        int r=jf.showOpenDialog(null);
-                        jf.setRequestFocusEnabled(true);
-                        if(r==JFileChooser.APPROVE_OPTION){
-                            File f=jf.getSelectedFile();
+                if(comando.toUpperCase().startsWith("PUT")){
+                    String texto = comando.replaceAll("(?i)PUT ", "").trim(); // Elimina "PUT" y espacios extra
+                    File f = new File(texto);
+                    System.out.println(f.getAbsolutePath());
+                    if (!f.isFile()) {
+                        System.out.println("550 No se encontró el directorio");
+
+                    } else{
+                        System.out.println("si se ecn");
+                        try{
+                            int pto=20;
+                            Socket c2=new Socket(dir,pto);
+                            System.out.println("Conexion con el socket de archivos");
+                            //JFileChooser jf=new JFileChooser();
+                            //int r=jf.showOpenDialog(null);
+                            //jf.setRequestFocusEnabled(true);
                             String nombre=f.getName();
                             String path=f.getAbsolutePath();
                             long tam=f.length();
@@ -80,6 +84,8 @@ public class Cliente {
                             DataOutputStream dos=new DataOutputStream(c2.getOutputStream());
                             DataInputStream dis=new DataInputStream(new FileInputStream(path));
                             dos.writeUTF(nombre);
+                            dos.flush();
+                            dos.writeLong(tam);
                             dos.flush();
                             long enviados=0;
                             int l=0,porcentaje=0;
@@ -97,10 +103,12 @@ public class Cliente {
                             dis.close();
                             dos.close();
                             c2.close();
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                        System.out.println("terminamos");
                     }
+
                 }
 
             }

@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,9 +27,9 @@ public class Servidor {
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
                 writer.println("Bienvenido a EscromDrive");
                 writer.flush();
-
-
-
+                // Creamos el Socket de datos
+                ServerSocket s2 = new ServerSocket(20);
+                s2.setReuseAddress(true);
 
                 // Ciclo para recibir comandos
                 while (true) {
@@ -42,6 +43,7 @@ public class Servidor {
                         reader.close();
                         writer.close();
                         c1.close();
+
                         System.exit(0);
                     } else {
                         System.out.println("Comando recibido: ");
@@ -155,9 +157,7 @@ public class Servidor {
                             writer.println("Cargando...");
                             writer.flush();
                             try{
-                                // Creamos el Socket de datos
-                                ServerSocket s2 = new ServerSocket(20);
-                                s2.setReuseAddress(true);
+
                                 System.out.println("Servidor iniciado esperando archivos");
                                 for(;;) {
                                     Socket c2 = s2.accept();
@@ -166,10 +166,11 @@ public class Servidor {
                                     String nombre = dis.readUTF();
                                     long tam = dis.readLong();
                                     System.out.println("Comienza la descarga del archivo " + nombre + " de: " + tam + " bytes\n\n");
-                                    DataOutputStream dos = new DataOutputStream(new FileOutputStream(f2.getAbsolutePath()));
+                                    DataOutputStream dos = new DataOutputStream(new FileOutputStream(ruta_archivos+nombre));
                                     long recibidos = 0;
                                     int l = 0, porcentaje = 0;
                                     while (recibidos < tam) {
+                                        System.out.println("entro");
                                         byte[] b = new byte[3500];
                                         l = dis.read(b);
                                         System.out.println("Leidos " + l);
@@ -183,26 +184,11 @@ public class Servidor {
                                     dos.close();
                                     dis.close();
                                     c2.close();
+                                    break;
                                 }
                             }catch (Exception e){
                                 e.printStackTrace();
                             }
-
-                            /*String nombreArchivo = comando.replace("PUT ", "").trim();
-                            File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
-                            System.out.println(archivo.getAbsolutePath());
-                            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(archivo))) {
-                                byte[] buffer = new byte[4096];
-                                int bytesRead;
-                                InputStream inputStream = c1.getInputStream();
-                                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                                    bos.write(buffer, 0, bytesRead);
-                                }
-                                writer.println("Archivo " + nombreArchivo + " subido correctamente.");
-                            } catch (IOException e) {
-                                writer.println("Error al subir el archivo " + nombreArchivo);
-                            }
-                            writer.flush();*/
                         } else if (comando.toUpperCase().startsWith("MPUT")) {
                             String[] archivos = comando.replace("MPUT ", "").trim().split(" ");
                             for (String nombreArchivo : archivos) {
