@@ -150,6 +150,78 @@ public class Servidor {
                                     writer.flush();
                                 }
                             }
+                        } else if (comando.toUpperCase().startsWith("PUT")) {
+                            String nombreArchivo = comando.replace("PUT ", "").trim();
+                            File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
+                            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(archivo))) {
+                                byte[] buffer = new byte[4096];
+                                int bytesRead;
+                                InputStream inputStream = c1.getInputStream();
+                                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                                    bos.write(buffer, 0, bytesRead);
+                                }
+                                writer.println("Archivo " + nombreArchivo + " subido correctamente.");
+                            } catch (IOException e) {
+                                writer.println("Error al subir el archivo " + nombreArchivo);
+                            }
+                            writer.flush();
+                        } else if (comando.toUpperCase().startsWith("MPUT")) {
+                            String[] archivos = comando.replace("MPUT ", "").trim().split(" ");
+                            for (String nombreArchivo : archivos) {
+                                File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
+                                try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(archivo))) {
+                                    byte[] buffer = new byte[4096];
+                                    int bytesRead;
+                                    InputStream inputStream = c1.getInputStream();
+                                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                                        bos.write(buffer, 0, bytesRead);
+                                    }
+                                    writer.println("Archivo " + nombreArchivo + " subido correctamente.");
+                                } catch (IOException e) {
+                                    writer.println("Error al subir el archivo " + nombreArchivo);
+                                }
+                            }
+                            writer.flush();
+                        } else if (comando.toUpperCase().startsWith("GET")) {
+                            String nombreArchivo = comando.replace("GET ", "").trim();
+                            File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
+                            if (archivo.exists() && archivo.isFile()) {
+                                try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(archivo))) {
+                                    byte[] buffer = new byte[4096];
+                                    int bytesRead;
+                                    OutputStream outputStream = c1.getOutputStream();
+                                    while ((bytesRead = bis.read(buffer)) != -1) {
+                                        outputStream.write(buffer, 0, bytesRead);
+                                    }
+                                    writer.println("Archivo " + nombreArchivo + " descargado correctamente.");
+                                } catch (IOException e) {
+                                    writer.println("Error al descargar el archivo " + nombreArchivo);
+                                }
+                            } else {
+                                writer.println("El archivo " + nombreArchivo + " no existe.");
+                            }
+                            writer.flush();
+                        } else if (comando.toUpperCase().startsWith("MGET")) {
+                            String[] archivos = comando.replace("MGET ", "").trim().split(" ");
+                            for (String nombreArchivo : archivos) {
+                                File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
+                                if (archivo.exists() && archivo.isFile()) {
+                                    try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(archivo))) {
+                                        byte[] buffer = new byte[4096];
+                                        int bytesRead;
+                                        OutputStream outputStream = c1.getOutputStream();
+                                        while ((bytesRead = bis.read(buffer)) != -1) {
+                                            outputStream.write(buffer, 0, bytesRead);
+                                        }
+                                        writer.println("Archivo " + nombreArchivo + " descargado correctamente.");
+                                    } catch (IOException e) {
+                                        writer.println("Error al descargar el archivo " + nombreArchivo);
+                                    }
+                                } else {
+                                    writer.println("El archivo " + nombreArchivo + " no existe.");
+                                }
+                            }
+                            writer.flush();
                         } else {
                             System.out.println("502 Orden no implementada.");
                             writer.println("502 Orden no implementada.");
