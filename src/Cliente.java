@@ -1,8 +1,6 @@
+import javax.swing.*;
 import java.io.*;
-import java.lang.management.OperatingSystemMXBean;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.sql.SQLOutput;
 import java.util.Scanner;
 
 public class Cliente {
@@ -36,7 +34,7 @@ public class Cliente {
                     System.out.println(azul + "PWD" + reset + " - Mostrar directorio actual");//
                     System.out.println(azul + "LS" + reset + " - Listar archivos y carpetas");//
                     System.out.println(azul + "MKDIR" + reset + " - Crea el directorio indicado de forma remota");//
-                    System.out.println(azul + "CD <directorio>" + reset + " - Cambiar de directorio");
+                    System.out.println(azul + "CD <directorio>" + reset + " - Cambiar de directorio"); //
                     System.out.println(azul + "GET <archivo>" + reset + " - Descargar un archivo");
                     System.out.println(azul + "MGET <archivos>" + reset + " - Descargar multiples archivos");
                     System.out.println(azul + "PUT <archivo>" + reset + " - Subir un archivo");
@@ -45,7 +43,6 @@ public class Cliente {
                     System.out.println(azul + "RENAME <archivo>" + reset + " - Cambia el nombre a un archivo");
                     System.out.println(azul + "QUIT" + reset + " - Cerrar sesión");//
                 }
-
                 writer.println(comando); // Enviar comando al servidor
                 writer.flush(); // Se envia de inmediato
                 if (comando.compareToIgnoreCase("LS") == 0) {
@@ -64,6 +61,46 @@ public class Cliente {
                     reader.close();
                     c1.close();
                     System.exit(0);
+                }
+
+                if(comando.compareToIgnoreCase("PUT")==0){
+                    try{
+                        int pto=20;
+                        Socket c2=new Socket(dir,pto);
+                        System.out.println("Conexion con el socket de archivos");
+                        JFileChooser jf=new JFileChooser();
+                        int r=jf.showOpenDialog(null);
+                        jf.setRequestFocusEnabled(true);
+                        if(r==JFileChooser.APPROVE_OPTION){
+                            File f=jf.getSelectedFile();
+                            String nombre=f.getName();
+                            String path=f.getAbsolutePath();
+                            long tam=f.length();
+                            System.out.println("Preparandose para enviar archivo"+path+" de "+tam+" bytes\n\n");
+                            DataOutputStream dos=new DataOutputStream(c2.getOutputStream());
+                            DataInputStream dis=new DataInputStream(new FileInputStream(path));
+                            dos.writeUTF(nombre);
+                            dos.flush();
+                            long enviados=0;
+                            int l=0,porcentaje=0;
+                            while(enviados<tam){
+                                byte[] b=new byte[3500];
+                                l=dis.read(b);
+                                System.out.println("enviados: "+l);
+                                dos.write(b,0,l);
+                                dos.flush();
+                                enviados=enviados+l;
+                                porcentaje=(int)((enviados*100)/tam);
+                                System.out.println("\rEnviado el "+porcentaje+"% del archivo");
+                            }
+                            System.out.println("\nArchivo enviado");
+                            dis.close();
+                            dos.close();
+                            c2.close();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
 
             }

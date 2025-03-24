@@ -26,8 +26,9 @@ public class Servidor {
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
                 writer.println("Bienvenido a EscromDrive");
                 writer.flush();
-                // Creamos el Socket de datos
-                ServerSocket s2 = new ServerSocket(20);
+
+
+
 
                 // Ciclo para recibir comandos
                 while (true) {
@@ -151,8 +152,45 @@ public class Servidor {
                                 }
                             }
                         } else if (comando.toUpperCase().startsWith("PUT")) {
-                            String nombreArchivo = comando.replace("PUT ", "").trim();
+                            writer.println("Cargando...");
+                            writer.flush();
+                            try{
+                                // Creamos el Socket de datos
+                                ServerSocket s2 = new ServerSocket(20);
+                                s2.setReuseAddress(true);
+                                System.out.println("Servidor iniciado esperando archivos");
+                                for(;;) {
+                                    Socket c2 = s2.accept();
+                                    System.out.println("Cliente conectado al socket de datos desde " + c2.getInetAddress() + ": " + c2.getPort());
+                                    DataInputStream dis = new DataInputStream(c2.getInputStream());
+                                    String nombre = dis.readUTF();
+                                    long tam = dis.readLong();
+                                    System.out.println("Comienza la descarga del archivo " + nombre + " de: " + tam + " bytes\n\n");
+                                    DataOutputStream dos = new DataOutputStream(new FileOutputStream(f2.getAbsolutePath()));
+                                    long recibidos = 0;
+                                    int l = 0, porcentaje = 0;
+                                    while (recibidos < tam) {
+                                        byte[] b = new byte[3500];
+                                        l = dis.read(b);
+                                        System.out.println("Leidos " + l);
+                                        dos.write(b, 0, l);
+                                        dos.flush();
+                                        recibidos += l;
+                                        porcentaje = (int) ((recibidos * 100) / tam);
+                                        System.out.println("\rRecibido el " + porcentaje + "% del archivo");
+                                    }
+                                    System.out.println("Archivo recibido...");
+                                    dos.close();
+                                    dis.close();
+                                    c2.close();
+                                }
+                            }catch (Exception e){
+                                e.printStackTrace();
+                            }
+
+                            /*String nombreArchivo = comando.replace("PUT ", "").trim();
                             File archivo = new File(f2.getAbsolutePath() + "\\" + nombreArchivo);
+                            System.out.println(archivo.getAbsolutePath());
                             try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(archivo))) {
                                 byte[] buffer = new byte[4096];
                                 int bytesRead;
@@ -164,7 +202,7 @@ public class Servidor {
                             } catch (IOException e) {
                                 writer.println("Error al subir el archivo " + nombreArchivo);
                             }
-                            writer.flush();
+                            writer.flush();*/
                         } else if (comando.toUpperCase().startsWith("MPUT")) {
                             String[] archivos = comando.replace("MPUT ", "").trim().split(" ");
                             for (String nombreArchivo : archivos) {

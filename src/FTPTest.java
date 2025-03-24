@@ -1,28 +1,18 @@
-/*
-import org.apache.commons.net.ftp.FTPClient;
-import java.io.IOException;
+import javax.swing.*;
+import java.io.File;
 
 public class FTPTest {
     public static void main(String[] args) {
-        FTPClient ftp = new FTPClient();
-
-        try {
-            // Intenta conectar con un servidor FTP público para pruebas
-            ftp.connect("ftp.dlptest.com"); // Usa un servidor FTP público de prueba
-            if (ftp.isConnected()) {
-                System.out.println("✅ Conexión exitosa al servidor FTP.");
-            } else {
-                System.out.println("❌ No se pudo conectar.");
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                JFileChooser jf = new JFileChooser();
+                int r = jf.showOpenDialog(null);
+                if (r == JFileChooser.APPROVE_OPTION) {
+                    File f = jf.getSelectedFile();
+                    System.out.println("Archivo seleccionado: " + f.getAbsolutePath());
+                }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                ftp.disconnect();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        });
     }
 }
-*/
