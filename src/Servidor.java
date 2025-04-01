@@ -61,6 +61,8 @@ public class Servidor {
                         System.out.println(comando);
                         // Responder a los comandos del cliente
                         if (comando.toUpperCase().startsWith("LS")) {
+                            writer.println("---------- Listando archivos y carpetas (SERVIDOR) ----------");
+                            writer.flush(); // Asegura que el mensaje se envíe antes de los archivos
 
                             List<String> resultados = listFiles(x2, "");
                             if (resultados != null && !resultados.isEmpty()) {
@@ -71,13 +73,12 @@ public class Servidor {
                                     writer.flush();
                                 }
                             } else {
-                                writer.println("550: Directorio Vacio"); // Indicador de fin de lista
+                                writer.println("550: Directorio Vacio"); // Indicador de directorio vacío
                                 writer.flush();
                             }
 
                             writer.println("END_LIST"); // Indicador de fin de lista
                             writer.flush();
-
                         } else if (comando.toUpperCase().startsWith("CWD")) {
                             estado = !estado;
                             if (estado) {

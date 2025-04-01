@@ -2,7 +2,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class ClienteGUI {
     private JTextArea txtArea;
@@ -50,7 +52,7 @@ public class ClienteGUI {
         frame.add(scrollPane, BorderLayout.CENTER);
 
         JPanel panel = new JPanel(new BorderLayout());
-        rutaField = new JTextField(estaEnLocal ? carpeta.getAbsolutePath() : "drive");
+        rutaField = new JTextField(estaEnLocal ? carpeta.getAbsolutePath() + " >" : "drive");
         rutaField.setEditable(false);
         commandField = new JTextField();
         JButton btnEnviar = new JButton("Enviar");
@@ -150,12 +152,35 @@ public class ClienteGUI {
             if (estaEnLocal) {
                 if (command.startsWith("PUT") || command.startsWith("MPUT")) {
                     sendFile(command);
-                } else if (Arrays.asList("PWD", "LS", "MKDIR", "DELETE").stream().anyMatch(command::startsWith)) {
-                    txtArea.append("Ejecutando comando local: " + command + "\n");
-                    // Aquí puedes manejar la lógica de ejecución en local si es necesario
-                } else if (command.equals("CWD")) {
+                } else if (command.equalsIgnoreCase("LS")) {
+                    txtArea.append("---------- Listando archivos y carpetas (LOCAL) ----------\n");
+                    listLocalFiles();
+                } else if (command.equalsIgnoreCase("PWD")) {
+                    txtArea.append("Directorio actual: " + carpeta.getAbsolutePath() + "\n");
+                } else if (command.startsWith("MKDIR")) {
+                    String nombreCarpeta = command.substring(6).trim();
+                    File nuevaCarpeta = new File(carpeta, nombreCarpeta);
+                    if (nuevaCarpeta.mkdir()) {
+                        txtArea.append("Carpeta creada: " + nuevaCarpeta.getAbsolutePath() + "\n");
+                    } else {
+                        txtArea.append("Error al crear la carpeta.\n");
+                    }
+                } else if (command.startsWith("DELETE")) {
+                    String directorio = command.replaceAll("(?i)DELETE ", "");// unicamente el nombre
+                    File archivo = new File(carpeta, directorio);
+                    File miFichero = new File(carpeta.getAbsolutePath() + "\\" + directorio);
+                    if(miFichero.exists()){
+                        if(miFichero.delete()){
+                            txtArea.append("\n200 " + miFichero.getName() + " se eliminó correctamente");
+                        }else{
+                            txtArea.append("502: El directorio no está vacío y no se puede eliminar");
+                        }
+                    }else{
+                        txtArea.append(miFichero.getName() + " no existe");
+                    }
+                } else if (command.equalsIgnoreCase("CWD")) {
                     estaEnLocal = false;
-                    rutaField.setText("drive");
+                    rutaField.setText("drive >");
                     listaDeComandos.setText(comandosCarpetaServer);
                 } else {
                     txtArea.append("Comando inválido en modo local.\n");
@@ -197,7 +222,7 @@ public class ClienteGUI {
                     }.execute();
                 } else if (command.equals("CWD")) {
                     estaEnLocal = true;
-                    rutaField.setText(carpeta.getAbsolutePath());
+                    rutaField.setText(carpeta.getAbsolutePath() + " >");
                     listaDeComandos.setText(comandosCarpetaLocal);
                 } else {
                     txtArea.append("Comando inválido en modo servidor.\n");
@@ -220,6 +245,35 @@ public class ClienteGUI {
             System.exit(0);
         }
         return null; // Nunca llegará aquí, pero es necesario para compilar
+    }
+
+    private void listLocalFiles() {
+        List<String> resultados = listFiles(carpeta, ""); // Usamos carpeta como directorio base
+        if (resultados != null && !resultados.isEmpty()) {
+            for (String linea : resultados) {
+                txtArea.append(linea + "\n");
+            }
+        } else {
+            txtArea.append("Directorio vacío.\n");
+        }
+    }
+
+    public static List<String> listFiles(File dir, String tabulacion) {
+        List<String> resultados = new ArrayList<>();
+        File[] files = dir.listFiles(); // Obtenemos archivos y directorios
+        if (files != null) { // Verificamos que el directorio no esté vacío
+            for (File file : files) {
+                String resultado = tabulacion + file.getName(); // Solo mostramos el nombre del archivo o directorio
+                if (file.isDirectory()) {
+                    resultado += "\\"; // Si es un directorio, agregamos "\" al final para identificarlo
+                }
+                resultados.add(resultado); // Agregar a la lista
+                if (file.isDirectory()) { // Si es un directorio, hacemos recursión
+                    resultados.addAll(listFiles(file, tabulacion + "\t")); // Se agrega una tabulación extra
+                }
+            }
+        }
+        return resultados;
     }
 
     public static void main(String[] args) {
