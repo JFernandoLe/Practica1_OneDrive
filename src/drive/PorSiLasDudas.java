@@ -22,6 +22,8 @@ public class ClienteGUI {
             "DELETE <nombre> - Eliminar archivo en la carpeta local\n" +
             "PUT <archivo> - Subir archivo desde la carpeta local al servidor\n" +
             "MPUT <archivos> - Subir múltiples archivos desde la carpeta local al servidor\n" +
+            "GET <archivo> - Descargar archivo del servidor a la carpeta local\n" +
+            "MGET <archivos> - Descargar múltiples archivos del servidor a la carpeta local\n" +
             "QUIT - Salir de la aplicación";
 
     String comandosCarpetaServer = "Comandos aceptados:\n" +
@@ -37,37 +39,42 @@ public class ClienteGUI {
             "MGET <archivos> - Descargar múltiples archivos desde el servidor a la carpeta local\n" +
             "QUIT - Salir del servidor FTP";
 
-    public ClienteGUI(File carpetaSeleccionada) {
-        this.carpeta = carpetaSeleccionada;
-        JFrame frame = new JFrame("ESCOMDRIVE");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
-        frame.setLayout(new BorderLayout());
-
-        txtArea = new JTextArea();
-        txtArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(txtArea);
-        frame.add(scrollPane, BorderLayout.CENTER);
-
-        JPanel panel = new JPanel(new BorderLayout());
-        rutaField = new JTextField(estaEnLocal ? carpeta.getAbsolutePath() : "drive");
-        rutaField.setEditable(false);
-        commandField = new JTextField();
-        JButton btnEnviar = new JButton("Enviar");
-        panel.add(rutaField, BorderLayout.WEST);
-        panel.add(commandField, BorderLayout.CENTER);
-        panel.add(btnEnviar, BorderLayout.EAST);
-        frame.add(panel, BorderLayout.SOUTH);
-
-        listaDeComandos = new JTextArea(comandosCarpetaLocal);
-        listaDeComandos.setEditable(false);
-        frame.add(new JScrollPane(listaDeComandos), BorderLayout.EAST);
-
-        btnEnviar.addActionListener(e -> sendCommand());
-
-        frame.setVisible(true);
-        connectToServer();
-    }
+            public ClienteGUI(File carpetaSeleccionada) {
+                this.carpeta = carpetaSeleccionada;
+                JFrame frame = new JFrame("ESCOMDRIVE");
+                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                frame.setSize(800, 600);
+                frame.setLayout(new BorderLayout());
+        
+                txtArea = new JTextArea();
+                txtArea.setEditable(false);
+                JScrollPane scrollPane = new JScrollPane(txtArea);
+                frame.add(scrollPane, BorderLayout.CENTER);
+        
+                JPanel panel = new JPanel(new BorderLayout());
+                rutaField = new JTextField(estaEnLocal ? carpeta.getAbsolutePath() : "drive");
+                rutaField.setEditable(false);
+                commandField = new JTextField();
+                JButton btnEnviar = new JButton("Enviar");
+                panel.add(rutaField, BorderLayout.WEST);
+                panel.add(commandField, BorderLayout.CENTER);
+                panel.add(btnEnviar, BorderLayout.EAST);
+                frame.add(panel, BorderLayout.SOUTH);
+        
+                listaDeComandos = new JTextArea(comandosCarpetaLocal);
+                listaDeComandos.setEditable(false);
+                frame.add(new JScrollPane(listaDeComandos), BorderLayout.EAST);
+        
+                btnEnviar.addActionListener(e -> sendCommand());
+        
+                frame.setVisible(true);
+                connectToServer();
+                           // Mostrar carpeta local seleccionada en la GUI
+        // txtArea.append("Carpeta local seleccionada: " + carpeta.getAbsolutePath() +
+        // "\n");
+        // Se puede listar el contenido inicial de la carpeta local
+        // printLocalDirectory();
+            }
     /*
      * private void printLocalDirectory() {
      * File[] files = carpeta.listFiles();
@@ -146,62 +153,53 @@ public class ClienteGUI {
 
     private void sendCommand() {
         String command = commandField.getText();
+        System.out.println("El comando recibido es " + command);
         if (!command.isEmpty()) {
-            if (estaEnLocal) {
-                if (command.startsWith("PUT") || command.startsWith("MPUT")) {
-                    sendFile(command);
-                } else if (Arrays.asList("PWD", "LS", "MKDIR", "DELETE").stream().anyMatch(command::startsWith)) {
-                    txtArea.append("Ejecutando comando local: " + command + "\n");
-                    // Aquí puedes manejar la lógica de ejecución en local si es necesario
-                } else if (command.equals("CWD")) {
-                    estaEnLocal = false;
-                    rutaField.setText("drive");
-                    listaDeComandos.setText(comandosCarpetaServer);
-                } else {
-                    txtArea.append("Comando inválido en modo local.\n");
-                }
+            if (command.startsWith("PUT")) {
+                // Para PUT se puede permitir elegir el archivo dentro de la carpeta local
+                // Por ejemplo, si se ingresa "PUT archivo.txt", se buscará "archivo.txt" dentro
+                // de localFolder
+                sendFile(command);
+            } else if (command.startsWith("MPUT")) {
+                sendFile(command);
+            } else if (command.startsWith("GET") || command.startsWith("MGET")) {
+                getFile(command);
+            } else if (command.equals("CWD")) {
+                estaEnLocal = !estaEnLocal;
+                rutaField.setText(estaEnLocal ? carpeta.getAbsolutePath() : "drive");
+                listaDeComandos.setText(estaEnLocal ? comandosCarpetaLocal : comandosCarpetaServer);
             } else {
-                if (command.startsWith("GET") || command.startsWith("MGET")) {
-                    getFile(command);
-                } else if (Arrays.asList("PWD", "LS", "MKDIR", "CD", "DELETE").stream().anyMatch(command::startsWith)) {
-                    new SwingWorker<Void, String>() {
-                        @Override
-                        protected Void doInBackground() throws Exception {
-                            writer.println(command);
-                            writer.flush();
-                            if (command.equalsIgnoreCase("LS")) {
-                                String line;
-                                while (!(line = reader.readLine()).equals("END_LIST")) {
-                                    publish(line);
-                                }
-                            } else {
-                                publish(reader.readLine());
+                new SwingWorker<Void, String>() {
+                    @Override
+                    protected Void doInBackground() throws Exception {
+                        writer.println(command);
+                        writer.flush();
+                        if (command.equalsIgnoreCase("LS")) {
+                            String line;
+                            while (!(line = reader.readLine()).equals("END_LIST")) {
+                                publish(line);
                             }
-                            return null;
+                        } else {
+                            publish(reader.readLine());
                         }
+                        return null;
+                    }
 
-                        @Override
-                        protected void process(java.util.List<String> chunks) {
-                            for (String line : chunks) {
-                                txtArea.append(line + "\n");
-                            }
+                    @Override
+                    protected void process(java.util.List<String> chunks) {
+                        for (String line : chunks) {
+                            txtArea.append(line + "\n");
                         }
+                    }
 
-                        @Override
-                        protected void done() {
-                            if (command.equalsIgnoreCase("QUIT")) {
-                                System.exit(0);
-                            }
-                            commandField.setText("");
+                    @Override
+                    protected void done() {
+                        if (command.equalsIgnoreCase("QUIT")) {
+                            System.exit(0);
                         }
-                    }.execute();
-                } else if (command.equals("CWD")) {
-                    estaEnLocal = true;
-                    rutaField.setText(carpeta.getAbsolutePath());
-                    listaDeComandos.setText(comandosCarpetaLocal);
-                } else {
-                    txtArea.append("Comando inválido en modo servidor.\n");
-                }
+                        commandField.setText("");
+                    }
+                }.execute();
             }
         }
     }

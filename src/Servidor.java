@@ -19,17 +19,17 @@ public class Servidor {
             File f2 = new File(ruta_archivos);
             f2.mkdirs();
             f2.setWritable(true);
-            //Creacion de la carpeta local
-            File t=new File("");
-            String rutaT="C:";
-            String carpetaT="local";
-            String rutaLocalT=carpetaT+"\\";
-            String ruta_archivosT=rutaT+"\\"+rutaLocalT;
-            File t2=new File(ruta_archivosT);
+            // Creacion de la carpeta local
+            File t = new File("");
+            String rutaT = "C:";
+            String carpetaT = "local";
+            String rutaLocalT = carpetaT + "\\";
+            String ruta_archivosT = rutaT + "\\" + rutaLocalT;
+            File t2 = new File(ruta_archivosT);
             t2.mkdirs();
             t2.setWritable(true);
-            boolean estado=false; //false=drive, true=local
-            File x2=f2; //Inciamos por defecto con la ruta drive
+            boolean estado = false; // false=drive, true=local
+            File x2 = f2; // Inciamos por defecto con la ruta drive
 
             for (;;) {
                 Socket c1 = s1.accept();
@@ -56,22 +56,21 @@ public class Servidor {
                         c1.close();
 
                         System.exit(0);
-                    }
-                    else {
+                    } else {
                         System.out.println("Comando recibido: ");
                         System.out.println(comando);
                         // Responder a los comandos del cliente
                         if (comando.toUpperCase().startsWith("LS")) {
 
                             List<String> resultados = listFiles(x2, "");
-                            if(resultados != null && !resultados.isEmpty()){
+                            if (resultados != null && !resultados.isEmpty()) {
                                 System.out.println("Entro");
                                 for (String linea : resultados) {
                                     System.out.println(linea);
                                     writer.println(linea);
                                     writer.flush();
                                 }
-                            }else{
+                            } else {
                                 writer.println("550: Directorio Vacio"); // Indicador de fin de lista
                                 writer.flush();
                             }
@@ -79,18 +78,17 @@ public class Servidor {
                             writer.println("END_LIST"); // Indicador de fin de lista
                             writer.flush();
 
-                        }else if(comando.toUpperCase().startsWith("CWD")){
-                            estado=!estado;
-                            if(estado){
-                                x2=t2;
-                            }else{
-                                x2=f2;
+                        } else if (comando.toUpperCase().startsWith("CWD")) {
+                            estado = !estado;
+                            if (estado) {
+                                x2 = t2;
+                            } else {
+                                x2 = f2;
                             }
 
                             writer.println("Se cambio el modo correctamente"); // Indicador de fin de lista
                             writer.flush();
-                        }
-                        else if (comando.toUpperCase().startsWith("PWD")) {
+                        } else if (comando.toUpperCase().startsWith("PWD")) {
                             String texto = x2.getAbsolutePath(); // Obtenemos la ruta general
                             String dirAbs = texto.replace(f.getAbsolutePath(), ""); // Conservamos unicamente la
                             // direccion de la carpeta Drive
@@ -108,7 +106,7 @@ public class Servidor {
                                 writer.println("No se pudo crear el directorio");
                             }
                             writer.flush();
-                        }else if (comando.toUpperCase().startsWith("DELETE")) {
+                        } else if (comando.toUpperCase().startsWith("DELETE")) {
                             String texto = comando;
                             String directorio = texto.replaceAll("(?i)DELETE ", "");// unicamente el nombre
                             // Instanciamos la clase file con la ruta del fichero
@@ -118,7 +116,7 @@ public class Servidor {
                             // Comprobamos si existe el fichero
                             if (miFichero.exists()) {
                                 // Borramos el fichero
-                                boolean eliminado= miFichero.delete();
+                                boolean eliminado = miFichero.delete();
                                 if (eliminado) {
                                     writer.println("200: " + miFichero.getName() + " se elimino correctamente");
                                     writer.flush();
@@ -136,7 +134,7 @@ public class Servidor {
                             String texto = comando.replaceAll("(?i)CD ", "").trim(); // Elimina "CD" y espacios extra
                             if (texto.equals("..")) {
                                 // Evitar salir del directorio "drive"
-                                if (x2.getName().equalsIgnoreCase("drive")||x2.getName().equalsIgnoreCase("local")) {
+                                if (x2.getName().equalsIgnoreCase("drive") || x2.getName().equalsIgnoreCase("local")) {
                                     writer.println("No se puede retroceder más, ya estamos en el directorio raíz.");
                                     writer.flush();
                                 } else {
@@ -146,7 +144,8 @@ public class Servidor {
                                         x2 = directorioPadre;
                                         System.out.println(ruta_archivos);
                                         System.out.println(rutaLocal);
-                                        writer.println("Se cambió correctamente al directorio: " + x2.getAbsolutePath().replace(f.getAbsolutePath(),""));
+                                        writer.println("Se cambió correctamente al directorio: "
+                                                + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
                                         writer.flush();
                                     } else {
                                         writer.println("No se puede retroceder, no existe directorio padre.");
@@ -163,10 +162,11 @@ public class Servidor {
                                     writer.flush();
                                     x2 = new File(direccion_actual); // Volver al directorio anterior
                                 } else {
-                                    writer.println("Se cambió correctamente al directorio: " + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
+                                    writer.println("Se cambió correctamente al directorio: "
+                                            + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
                                     writer.flush();
                                 }
-                            }else if(texto.equals("")){
+                            } else if (texto.equals("")) {
                                 writer.println("553 Acción no realizada. Nombre de fichero no permitido.");
                                 writer.flush();
                             } else {
@@ -179,24 +179,28 @@ public class Servidor {
                                     writer.flush();
                                     x2 = new File(direccion_actual); // Volver al directorio anterior
                                 } else {
-                                    writer.println("Se cambió correctamente al directorio: " + x2.getAbsolutePath().replace(f.getAbsolutePath(),""));
+                                    writer.println("Se cambió correctamente al directorio: "
+                                            + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
                                     writer.flush();
                                 }
                             }
                         } else if (comando.toUpperCase().startsWith("PUT")) {
                             writer.println("200: Cargando...");
                             writer.flush();
-                            try{
+                            try {
 
                                 System.out.println("Servidor iniciado esperando archivos");
-                                for(;;) {
+                                for (;;) {
                                     Socket c2 = s2.accept();
-                                    System.out.println("Cliente conectado al socket de datos desde " + c2.getInetAddress() + ": " + c2.getPort());
+                                    System.out.println("Cliente conectado al socket de datos desde "
+                                            + c2.getInetAddress() + ": " + c2.getPort());
                                     DataInputStream dis = new DataInputStream(c2.getInputStream());
                                     String nombre = dis.readUTF();
                                     long tam = dis.readLong();
-                                    System.out.println("Comienza la descarga del archivo " + nombre + " de: " + tam + " bytes\n\n");
-                                    DataOutputStream dos = new DataOutputStream(new FileOutputStream(f2.getAbsolutePath()+"\\"+nombre));
+                                    System.out.println("Comienza la descarga del archivo " + nombre + " de: " + tam
+                                            + " bytes\n\n");
+                                    DataOutputStream dos = new DataOutputStream(
+                                            new FileOutputStream(f2.getAbsolutePath() + "\\" + nombre));
                                     long recibidos = 0;
                                     int l = 0, porcentaje = 0;
                                     while (recibidos < tam) {
@@ -216,7 +220,7 @@ public class Servidor {
                                     c2.close();
                                     break;
                                 }
-                            }catch (Exception e){
+                            } catch (Exception e) {
                                 e.printStackTrace();
                             }
                         } else if (comando.toUpperCase().startsWith("GET")) {
@@ -243,7 +247,8 @@ public class Servidor {
                             for (String nombreArchivo : archivos) {
                                 File archivo = new File(x2.getAbsolutePath() + "\\" + nombreArchivo);
                                 if (archivo.exists() && archivo.isFile()) {
-                                    try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(archivo))) {
+                                    try (BufferedInputStream bis = new BufferedInputStream(
+                                            new FileInputStream(archivo))) {
                                         byte[] buffer = new byte[4096];
                                         int bytesRead;
                                         OutputStream outputStream = c1.getOutputStream();
