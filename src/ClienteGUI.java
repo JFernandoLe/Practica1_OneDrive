@@ -5,17 +5,24 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 public class ClienteGUI {
+    String rojo = "\u001B[31m";
+    String verde = "\u001B[32m";
+    String azul = "\u001B[34m";
+    String reset = "\u001B[0m";
+    Scanner scanner = new Scanner(System.in);
     private JTextArea txtArea;
-    private JTextField commandField;
+    private JTextField txtComando;
     private PrintWriter writer;
     private BufferedReader reader;
-    private Socket socket; // Almacena el socket
+    private Socket c1; // Almacena el socket
     private File carpeta; // Carpeta local seleccionada
     private boolean estaEnLocal = true;
     private JTextArea listaDeComandos;
     private JTextField rutaField;
+    private String dir = "127.0.0.1"; // Dirección del servidor
     String comandosCarpetaLocal = "Comandos aceptados:\n" +
             "CWD - Cambiar de carpeta local a servidor o viceversa\n" +
             "PWD - Directorio actual de la carpeta local\n" +
@@ -54,10 +61,10 @@ public class ClienteGUI {
         JPanel panel = new JPanel(new BorderLayout());
         rutaField = new JTextField(estaEnLocal ? carpeta.getAbsolutePath() + " >" : "drive");
         rutaField.setEditable(false);
-        commandField = new JTextField();
+        txtComando = new JTextField();
         JButton btnEnviar = new JButton("Enviar");
         panel.add(rutaField, BorderLayout.WEST);
-        panel.add(commandField, BorderLayout.CENTER);
+        panel.add(txtComando, BorderLayout.CENTER);
         panel.add(btnEnviar, BorderLayout.EAST);
         frame.add(panel, BorderLayout.SOUTH);
 
@@ -68,133 +75,171 @@ public class ClienteGUI {
         btnEnviar.addActionListener(e -> sendCommand());
 
         frame.setVisible(true);
-        connectToServer();
-    }
-    /*
-     * private void printLocalDirectory() {
-     * File[] files = carpeta.listFiles();
-     * txtArea.append("Contenido de la carpeta local:\n");
-     * if (files != null) {
-     * for (File file : files) {
-     * txtArea.append(file.getName() + (file.isDirectory() ? " [DIR]" : "") + "\n");
-     * }
-     * } else {
-     * txtArea.append("La carpeta está vacía o no se pudo acceder.\n");
-     * }
-     * }
-     */
-
-    private void connectToServer() {
         try {
-            socket = new Socket("127.0.0.1", 21); // Conectar al servidor
-            reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), "ISO-8859-1"));
-            writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "ISO-8859-1"), true);
+            int puerto = 21;
+            c1 = new Socket(dir, puerto); // Hacemos la conexión al socket
+            reader = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
+            writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
             txtArea.append(reader.readLine() + "\n");
         } catch (IOException e) {
             txtArea.append("Error al conectar con el servidor\n");
         }
     }
 
-    private void sendFile(String command) {
-        new Thread(() -> {
-            String[] parts = command.split(" ");
-            String commandType = parts[0];
-            // Para PUT/MPUT, los archivos se buscarán dentro de la carpeta local
-            for (int i = 1; i < parts.length; i++) {
-                // Se asume que el nombre del archivo es relativo a la carpeta local
-                File file = new File(carpeta, parts[i]);
-                if (file.exists() && file.isFile()) {
-                    try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
-                        writer.println(commandType + " " + file.getName());
-                        byte[] buffer = new byte[4096];
-                        int bytesRead;
-                        while ((bytesRead = bis.read(buffer)) != -1) {
-                            writer.write(new String(buffer, 0, bytesRead));
-                        }
-                        writer.flush();
-                        txtArea.append("Archivo " + file.getName() + " enviado correctamente.\n");
-                    } catch (IOException e) {
-                        txtArea.append("Error al enviar el archivo " + file.getName() + "\n");
-                    }
-                } else {
-                    txtArea.append("El archivo " + file.getName() + " no existe en la carpeta local.\n");
-                }
-            }
-        }).start();
-    }
-
-    private void getFile(String command) {
-        new Thread(() -> {
-            String[] parts = command.split(" ");
-            String commandType = parts[0];
-            for (int i = 1; i < parts.length; i++) {
-                writer.println(commandType + " " + parts[i]);
-                writer.flush();
-                try (BufferedOutputStream bos = new BufferedOutputStream(
-                        new FileOutputStream(new File(carpeta, parts[i])))) {
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    InputStream inputStream = socket.getInputStream();
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        bos.write(buffer, 0, bytesRead);
-                    }
-                    txtArea.append("Archivo " + parts[i] + " descargado correctamente.\n");
-                } catch (IOException e) {
-                    txtArea.append("Error al descargar el archivo " + parts[i] + "\n");
-                }
-            }
-        }).start();
-    }
-
     private void sendCommand() {
-        String command = commandField.getText();
-        if (!command.isEmpty()) {
+        String comando = txtComando.getText();
+        if (!comando.isEmpty()) {
+            // Si nos encontramos en la carpeta local
             if (estaEnLocal) {
-                if (command.startsWith("PUT") || command.startsWith("MPUT")) {
-                    sendFile(command);
-                } else if (command.equalsIgnoreCase("LS")) {
+                // Comando PUT
+                if (comando.toUpperCase().startsWith("PUT")) {
+                    String texto = comando.replaceAll("(?i)PUT ", "").trim(); // Elimina "PUT" y espacios extra
+                    System.out.println("|" + texto + "|");
+                    File f = new File(carpeta + "\\" + texto);
+                    if (!f.isFile()) {
+                        System.out.println("Se metio al condicional papi");
+                        System.out.println(azul + "550 No se encontró el directorio" + reset);
+
+                    } else {
+                        writer.println(comando); // Enviar comando al servidor
+                        writer.flush(); // Se envia de inmediato
+                        try {
+                            System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
+                        try {
+                            int puerto2 = 20;
+                            Socket c2 = new Socket(dir, puerto2);
+                            System.out.println(azul + "Conexion con el socket de archivos");
+                            String nombre = f.getName();
+                            String path = f.getAbsolutePath();
+                            long tam = f.length();
+                            System.out.println("Preparandose para enviar archivo: " + path + " de " + tam + " bytes\n");
+                            DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
+                            DataInputStream dis = new DataInputStream(new FileInputStream(path));
+                            dos.writeUTF(nombre);
+                            dos.flush();
+                            dos.writeLong(tam);
+                            dos.flush();
+                            long enviados = 0;
+                            int l = 0, porcentaje = 0;
+                            while (enviados < tam) {
+                                byte[] b = new byte[3500];
+                                l = dis.read(b);
+                                dos.write(b, 0, l);
+                                dos.flush();
+                                enviados = enviados + l;
+                                porcentaje = (int) ((enviados * 100) / tam);
+                                System.out.println("\rEnviado el " + porcentaje + "% del archivo");
+                            }
+                            System.out.println("\nArchivo enviado" + reset);
+                            dis.close();
+                            dos.close();
+                            c2.close();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }else if (comando.toUpperCase().startsWith("MPUT")) {
+                    String texto = comando.replaceAll("(?i)MPUT ", "").trim(); // Elimina "MPUT" y espacios extra
+                    String[] archivos = texto.split(","); // Divide los nombres de archivos por comas
+                    for (String archivo : archivos) {
+                        File f = new File(carpeta + "\\" + archivo.trim());
+                        if (!f.isFile()) {
+                            System.out.println(azul + "550 No se encontró el archivo: " + archivo + reset);
+                        } else {
+                            writer.println("PUT " + archivo.trim()); // Enviar comando al servidor
+                            writer.flush();
+                            try{
+                                System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
+                            }catch(Exception e){
+                                e.printStackTrace();
+                            }
+                            
+                            try {
+                                int pto = 20;
+                                Socket c2 = new Socket(dir, pto);
+                                System.out.println(azul + "Conexión con el socket de archivos establecida");
+
+                                String nombre = f.getName();
+                                String path = f.getAbsolutePath();
+                                long tam = f.length();
+                                System.out.println("Preparándose para enviar archivo: " + path + " de " + tam + " bytes");
+
+                                DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
+                                DataInputStream dis = new DataInputStream(new FileInputStream(path));
+
+                                dos.writeUTF(nombre);
+                                dos.flush();
+                                dos.writeLong(tam);
+                                dos.flush();
+
+                                long enviados = 0;
+                                int l = 0, porcentaje = 0;
+                                byte[] buffer = new byte[3500];
+
+                                while (enviados < tam) {
+                                    l = dis.read(buffer);
+                                    dos.write(buffer, 0, l);
+                                    dos.flush();
+                                    enviados += l;
+                                    porcentaje = (int) ((enviados * 100) / tam);
+                                }
+                                System.out.println("Archivo " + nombre + " enviado con éxito\n" + reset);
+                                dis.close();
+                                dos.close();
+                                c2.close();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                } else if (comando.equalsIgnoreCase("LS")) {
                     txtArea.append("---------- Listando archivos y carpetas (LOCAL) ----------\n");
                     listLocalFiles();
-                } else if (command.equalsIgnoreCase("PWD")) {
+                } else if (comando.equalsIgnoreCase("PWD")) {
                     txtArea.append("Directorio actual: " + carpeta.getAbsolutePath() + "\n");
-                } else if (command.startsWith("MKDIR")) {
-                    String nombreCarpeta = command.substring(6).trim();
+                } else if (comando.startsWith("MKDIR")) {
+                    String nombreCarpeta = comando.substring(6).trim();
                     File nuevaCarpeta = new File(carpeta, nombreCarpeta);
                     if (nuevaCarpeta.mkdir()) {
                         txtArea.append("Carpeta creada: " + nuevaCarpeta.getAbsolutePath() + "\n");
                     } else {
                         txtArea.append("Error al crear la carpeta.\n");
                     }
-                } else if (command.startsWith("DELETE")) {
-                    String directorio = command.replaceAll("(?i)DELETE ", "");// unicamente el nombre
+                } else if (comando.startsWith("DELETE")) {
+                    String directorio = comando.replaceAll("(?i)DELETE ", "");// unicamente el nombre
                     File archivo = new File(carpeta, directorio);
                     File miFichero = new File(carpeta.getAbsolutePath() + "\\" + directorio);
-                    if(miFichero.exists()){
-                        if(miFichero.delete()){
+                    if (miFichero.exists()) {
+                        if (miFichero.delete()) {
                             txtArea.append("\n200 " + miFichero.getName() + " se eliminó correctamente");
-                        }else{
+                        } else {
                             txtArea.append("502: El directorio no está vacío y no se puede eliminar");
                         }
-                    }else{
+                    } else {
                         txtArea.append(miFichero.getName() + " no existe");
                     }
-                } else if (command.equalsIgnoreCase("CWD")) {
+                } else if (comando.equalsIgnoreCase("CWD")) {
                     estaEnLocal = false;
                     rutaField.setText("drive >");
                     listaDeComandos.setText(comandosCarpetaServer);
                 } else {
                     txtArea.append("Comando inválido en modo local.\n");
                 }
+                // Si estamos en la carpeta del server
             } else {
-                if (command.startsWith("GET") || command.startsWith("MGET")) {
-                    getFile(command);
-                } else if (Arrays.asList("PWD", "LS", "MKDIR", "CD", "DELETE").stream().anyMatch(command::startsWith)) {
+                if (comando.startsWith("GET") || comando.startsWith("MGET")) {
+                    // getFile(command);
+                } else if (Arrays.asList("PWD", "LS", "MKDIR", "CD", "DELETE").stream().anyMatch(comando::startsWith)) {
                     new SwingWorker<Void, String>() {
                         @Override
                         protected Void doInBackground() throws Exception {
-                            writer.println(command);
+                            writer.println(comando);
                             writer.flush();
-                            if (command.equalsIgnoreCase("LS")) {
+                            if (comando.equalsIgnoreCase("LS")) {
                                 String line;
                                 while (!(line = reader.readLine()).equals("END_LIST")) {
                                     publish(line);
@@ -214,13 +259,13 @@ public class ClienteGUI {
 
                         @Override
                         protected void done() {
-                            if (command.equalsIgnoreCase("QUIT")) {
+                            if (comando.equalsIgnoreCase("QUIT")) {
                                 System.exit(0);
                             }
-                            commandField.setText("");
+                            txtComando.setText("");
                         }
                     }.execute();
-                } else if (command.equals("CWD")) {
+                } else if (comando.equals("CWD")) {
                     estaEnLocal = true;
                     rutaField.setText(carpeta.getAbsolutePath() + " >");
                     listaDeComandos.setText(comandosCarpetaLocal);
