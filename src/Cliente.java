@@ -30,7 +30,8 @@ public class Cliente {
                     // Comandos
                     System.out.println(azul + "PWD" + reset + " - Mostrar directorio actual");//
                     System.out.println(azul + "LS" + reset + " - Listar archivos y carpetas");//
-                    System.out.println(azul + "MKDIR <directorio>" + reset + " - Crea el directorio indicado de forma remota");//
+                    System.out.println(
+                            azul + "MKDIR <directorio>" + reset + " - Crea el directorio indicado de forma remota");//
                     System.out.println(azul + "CD <directorio>" + reset + " - Cambiar de directorio"); //
                     System.out.println(azul + "GET <archivo>" + reset + " - Descargar un archivo");
                     System.out.println(azul + "MGET <archivos>" + reset + " - Descargar multiples archivos");
@@ -41,7 +42,18 @@ public class Cliente {
                     System.out.println(azul + "CWD - Cambia entre directorio local/drive");
                     System.out.println(azul + "QUIT" + reset + " - Cerrar sesión");//
                 }
-                if(!(comando.toUpperCase().startsWith("PUT")||comando.toUpperCase().startsWith("MPUT"))){  //No enviamos PUT, hasta que comprobemos que el archivo que se desea subir exista;
+                if (!(comando.toUpperCase().startsWith("PUT") || comando.toUpperCase().startsWith("MPUT"))) { // No
+                                                                                                              // enviamos
+                                                                                                              // PUT,
+                                                                                                              // hasta
+                                                                                                              // que
+                                                                                                              // comprobemos
+                                                                                                              // que el
+                                                                                                              // archivo
+                                                                                                              // que se
+                                                                                                              // desea
+                                                                                                              // subir
+                                                                                                              // exista;
                     writer.println(comando); // Enviar comando al servidor
                     writer.flush(); // Se envia de inmediato
                     System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
@@ -63,42 +75,42 @@ public class Cliente {
                     System.exit(0);
                 }
 
-                if(comando.toUpperCase().startsWith("PUT")){
+                if (comando.toUpperCase().startsWith("PUT")) {
                     String texto = comando.replaceAll("(?i)PUT ", "").trim(); // Elimina "PUT" y espacios extra
                     File f = new File(texto);
                     if (!f.isFile()) {
-                        System.out.println(azul+"550 No se encontró el directorio"+reset);
+                        System.out.println(azul + "550 No se encontró el directorio" + reset);
 
-                    } else{
+                    } else {
                         writer.println(comando); // Enviar comando al servidor
                         writer.flush(); // Se envia de inmediato
                         System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
-                        try{
-                            int pto=20;
-                            Socket c2=new Socket(dir,pto);
-                            System.out.println(azul+"Conexion con el socket de archivos");
-                            String nombre=f.getName();
-                            String path=f.getAbsolutePath();
-                            long tam=f.length();
-                            System.out.println("Preparandose para enviar archivo: "+path+" de "+tam+" bytes\n");
-                            DataOutputStream dos=new DataOutputStream(c2.getOutputStream());
-                            DataInputStream dis=new DataInputStream(new FileInputStream(path));
+                        try {
+                            int pto = 20;
+                            Socket c2 = new Socket(dir, pto);
+                            System.out.println(azul + "Conexion con el socket de archivos");
+                            String nombre = f.getName();
+                            String path = f.getAbsolutePath();
+                            long tam = f.length();
+                            System.out.println("Preparandose para enviar archivo: " + path + " de " + tam + " bytes\n");
+                            DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
+                            DataInputStream dis = new DataInputStream(new FileInputStream(path));
                             dos.writeUTF(nombre);
                             dos.flush();
                             dos.writeLong(tam);
                             dos.flush();
-                            long enviados=0;
-                            int l=0,porcentaje=0;
-                            while(enviados<tam){
-                                byte[] b=new byte[3500];
-                                l=dis.read(b);
-                                dos.write(b,0,l);
+                            long enviados = 0;
+                            int l = 0, porcentaje = 0;
+                            while (enviados < tam) {
+                                byte[] b = new byte[3500];
+                                l = dis.read(b);
+                                dos.write(b, 0, l);
                                 dos.flush();
-                                enviados=enviados+l;
-                                porcentaje=(int)((enviados*100)/tam);
-                                System.out.println("\rEnviado el "+porcentaje+"% del archivo");
+                                enviados = enviados + l;
+                                porcentaje = (int) ((enviados * 100) / tam);
+                                System.out.println("\rEnviado el " + porcentaje + "% del archivo");
                             }
-                            System.out.println("\nArchivo enviado"+reset);
+                            System.out.println("\nArchivo enviado" + reset);
                             dis.close();
                             dos.close();
                             c2.close();
@@ -106,7 +118,7 @@ public class Cliente {
                             e.printStackTrace();
                         }
                     }
-                }//PUT
+                } // PUT
                 if (comando.toUpperCase().startsWith("MPUT")) {
                     String texto = comando.replaceAll("(?i)MPUT ", "").trim(); // Elimina "MPUT" y espacios extra
                     String[] archivos = texto.split(","); // Divide los nombres de archivos por comas
@@ -126,7 +138,8 @@ public class Cliente {
                                 String nombre = f.getName();
                                 String path = f.getAbsolutePath();
                                 long tam = f.length();
-                                System.out.println("Preparándose para enviar archivo: " + path + " de " + tam + " bytes");
+                                System.out
+                                        .println("Preparándose para enviar archivo: " + path + " de " + tam + " bytes");
 
                                 DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
                                 DataInputStream dis = new DataInputStream(new FileInputStream(path));

@@ -7,52 +7,39 @@ public class Servidor {
     public static void main(String[] args) {
         try {
             // Creamos el Socket de control
-            ServerSocket s1 = new ServerSocket(21); // Asignamos el puerto 21, que es el de control para FTP
-            s1.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-            System.out.println("Servidor iniciado en el puerto " + s1.getLocalPort());
+            ServerSocket servidor = new ServerSocket(5000); // Asignamos el puerto 21, que es el de control para FTP
+            servidor.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+            System.out.println("Servidor iniciado en el puerto " + servidor.getLocalPort());
             // Creacion de la carpeta Drive
             File f = new File("");
             String ruta = f.getAbsolutePath();
-            String carpeta = "drive";
-            String rutaLocal = carpeta + "\\";
+            System.out.println("La ruta es " + ruta);
+            String rutaLocal = "drive" + "\\";
             String ruta_archivos = ruta + "\\" + rutaLocal;
             File f2 = new File(ruta_archivos);
             f2.mkdirs();
             f2.setWritable(true);
-            // Creacion de la carpeta local
-            File t = new File("");
-            String rutaT = "C:";
-            String carpetaT = "local";
-            String rutaLocalT = carpetaT + "\\";
-            String ruta_archivosT = rutaT + "\\" + rutaLocalT;
-            File t2 = new File(ruta_archivosT);
-            t2.mkdirs();
-            t2.setWritable(true);
-            boolean estado = false; // false=drive, true=local
             File x2 = f2; // Inciamos por defecto con la ruta drive
 
             for (;;) {
-                Socket c1 = s1.accept();
+                Socket c1 = servidor.accept();
                 System.out.println("Cliente conectado desde " + c1.getInetAddress() + ":" + c1.getPort());
-                BufferedReader reader = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
-                writer.println("Bienvenido a EscromDrive");
-                writer.flush();
-                // Creamos el Socket de datos
-                ServerSocket s2 = new ServerSocket(20);
+                BufferedReader in = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
+                PrintWriter out = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
+                out.println("Bienvenido a EscromDrive");
+                out.flush();
+                ServerSocket s2 = new ServerSocket(5001);
                 s2.setReuseAddress(true);
-
-                // Ciclo para recibir comandos
                 while (true) {
 
-                    String comando = reader.readLine();
+                    String comando = in.readLine();
 
                     if (comando.compareToIgnoreCase("QUIT") == 0) {
                         System.out.println("Cliente cierra la conexion");
-                        writer.println("226: Cerrando la conexión de datos.");
-                        writer.flush();
-                        reader.close();
-                        writer.close();
+                        out.println("226: Cerrando la conexión de datos.");
+                        out.flush();
+                        in.close();
+                        out.close();
                         c1.close();
 
                         System.exit(0);
@@ -61,40 +48,33 @@ public class Servidor {
                         System.out.println(comando);
                         // Responder a los comandos del cliente
                         if (comando.toUpperCase().startsWith("LS")) {
-                            writer.println("---------- Listando archivos y carpetas (SERVIDOR) ----------");
-                            writer.flush(); // Asegura que el mensaje se envíe antes de los archivos
-
+                            out.println("---------- Listando archivos y carpetas (SERVIDOR) ----------");
+                            out.flush(); // Asegura que el mensaje se envíe antes de los archivos
+                            System.out.println("La cosa x2 es " + x2);
                             List<String> resultados = listFiles(x2, "");
                             if (resultados != null && !resultados.isEmpty()) {
                                 // System.out.println("Entro");
                                 for (String linea : resultados) {
                                     // System.out.println(linea);
-                                    writer.println(linea);
-                                    writer.flush();
+                                    out.println(linea);
+                                    out.flush();
                                 }
                             } else {
-                                writer.println("550: Directorio Vacio"); // Indicador de directorio vacío
-                                writer.flush();
+                                out.println("550: Directorio Vacio"); // Indicador de directorio vacío
+                                out.flush();
                             }
 
-                            writer.println("END_LIST"); // Indicador de fin de lista
-                            writer.flush();
+                            out.println("END_LIST"); // Indicador de fin de lista
+                            out.flush();
                         } else if (comando.toUpperCase().startsWith("CWD")) {
-                            estado = !estado;
-                            if (estado) {
-                                x2 = t2;
-                            } else {
-                                x2 = f2;
-                            }
-
-                            writer.println("Se cambio el modo correctamente"); // Indicador de fin de lista
-                            writer.flush();
+                            out.println("Se cambio el modo correctamente"); // Indicador de fin de lista
+                            out.flush();
                         } else if (comando.toUpperCase().startsWith("PWD")) {
                             String texto = x2.getAbsolutePath(); // Obtenemos la ruta general
                             String dirAbs = texto.replace(f.getAbsolutePath(), ""); // Conservamos unicamente la
                             // direccion de la carpeta Drive
-                            writer.println(dirAbs);
-                            writer.flush();
+                            out.println(dirAbs);
+                            out.flush();
                         } else if (comando.toUpperCase().startsWith("MKDIR")) {
                             String texto = comando;
                             String directorio = texto.replaceAll("(?i)MKDIR ", "");
@@ -102,11 +82,11 @@ public class Servidor {
                             String ruta_nueva = x2.getAbsolutePath() + "\\" + directorio;
                             File nuevoDirectorio = new File(ruta_nueva);
                             if (nuevoDirectorio.mkdirs()) { // Creamos el directorio
-                                writer.println("Se creó el directorio correctamente");
+                                out.println("Se creó el directorio correctamente");
                             } else {
-                                writer.println("No se pudo crear el directorio");
+                                out.println("No se pudo crear el directorio");
                             }
-                            writer.flush();
+                            out.flush();
                         } else if (comando.toUpperCase().startsWith("DELETE")) {
                             String texto = comando;
                             String directorio = texto.replaceAll("(?i)DELETE ", "");// unicamente el nombre
@@ -119,16 +99,16 @@ public class Servidor {
                                 // Borramos el fichero
                                 boolean eliminado = miFichero.delete();
                                 if (eliminado) {
-                                    writer.println("200: " + miFichero.getName() + " se elimino correctamente");
-                                    writer.flush();
+                                    out.println("200: " + miFichero.getName() + " se elimino correctamente");
+                                    out.flush();
                                 } else {
-                                    writer.println("502: El directorio no esta vacio y no se puede eliminar");
-                                    writer.flush();
+                                    out.println("502: El directorio no esta vacio y no se puede eliminar");
+                                    out.flush();
                                 }
-                                writer.flush();
+                                out.flush();
                             } else {
-                                writer.println(miFichero.getName() + " NO existe");
-                                writer.flush();
+                                out.println(miFichero.getName() + " NO existe");
+                                out.flush();
                             }
                         } else if (comando.toUpperCase().startsWith("CD")) {
                             String direccion_actual = x2.getAbsolutePath();
@@ -136,8 +116,8 @@ public class Servidor {
                             if (texto.equals("..")) {
                                 // Evitar salir del directorio "drive"
                                 if (x2.getName().equalsIgnoreCase("drive") || x2.getName().equalsIgnoreCase("local")) {
-                                    writer.println("No se puede retroceder más, ya estamos en el directorio raíz.");
-                                    writer.flush();
+                                    out.println("No se puede retroceder más, ya estamos en el directorio raíz.");
+                                    out.flush();
                                 } else {
                                     // Ir al directorio padre
                                     File directorioPadre = x2.getParentFile();
@@ -145,12 +125,12 @@ public class Servidor {
                                         x2 = directorioPadre;
                                         System.out.println(ruta_archivos);
                                         System.out.println(rutaLocal);
-                                        writer.println("Se cambió correctamente al directorio: "
+                                        out.println("Se cambió correctamente al directorio: "
                                                 + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
-                                        writer.flush();
+                                        out.flush();
                                     } else {
-                                        writer.println("No se puede retroceder, no existe directorio padre.");
-                                        writer.flush();
+                                        out.println("No se puede retroceder, no existe directorio padre.");
+                                        out.flush();
                                     }
                                 }
                             } else if (texto.startsWith("\\")) {
@@ -159,77 +139,186 @@ public class Servidor {
                                 x2 = new File(nuevaRuta);
                                 if (!x2.isDirectory()) {
                                     System.out.println("550 No se encontró la dirección");
-                                    writer.println("550 No se encontró la dirección");
-                                    writer.flush();
+                                    out.println("550 No se encontró la dirección");
+                                    out.flush();
                                     x2 = new File(direccion_actual); // Volver al directorio anterior
                                 } else {
-                                    writer.println("Se cambió correctamente al directorio: "
+                                    out.println("Se cambió correctamente al directorio: "
                                             + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
-                                    writer.flush();
+                                    out.flush();
                                 }
                             } else if (texto.equals("")) {
-                                writer.println("553 Acción no realizada. Nombre de fichero no permitido.");
-                                writer.flush();
+                                out.println("553 Acción no realizada. Nombre de fichero no permitido.");
+                                out.flush();
                             } else {
                                 // Ruta relativa
                                 String nuevaRuta = x2.getAbsolutePath() + "\\" + texto;
                                 x2 = new File(nuevaRuta);
                                 if (!x2.isDirectory()) {
                                     System.out.println("550 No se encontró la dirección");
-                                    writer.println("550 No se encontró la dirección");
-                                    writer.flush();
+                                    out.println("550 No se encontró la dirección");
+                                    out.flush();
                                     x2 = new File(direccion_actual); // Volver al directorio anterior
                                 } else {
-                                    writer.println("Se cambió correctamente al directorio: "
+                                    out.println("Se cambió correctamente al directorio: "
                                             + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
-                                    writer.flush();
+                                    out.flush();
                                 }
+                            }
+                        } else if (comando.toUpperCase().startsWith("PUT")) {
+                            out.println("200: Cargando...");
+                            out.flush();
+                            try {
+
+                                System.out.println("Servidor iniciado esperando archivos");
+                                for (;;) {
+                                    Socket c2 = s2.accept();
+                                    System.out.println("Cliente conectado al socket de datos desde "
+                                            + c2.getInetAddress() + ": " + c2.getPort());
+                                    DataInputStream dis = new DataInputStream(c2.getInputStream());
+                                    String nombre = dis.readUTF();
+                                    long tam = dis.readLong();
+                                    System.out.println("Comienza la descarga del archivo " + nombre + " de: " + tam
+                                            + " bytes\n\n");
+                                    DataOutputStream dos = new DataOutputStream(
+                                            new FileOutputStream(f2.getAbsolutePath() + "\\" + nombre));
+                                    long recibidos = 0;
+                                    int l = 0, porcentaje = 0;
+                                    while (recibidos < tam) {
+                                        System.out.println("entro");
+                                        byte[] b = new byte[3500];
+                                        l = dis.read(b);
+                                        System.out.println("Leidos " + l);
+                                        dos.write(b, 0, l);
+                                        dos.flush();
+                                        recibidos += l;
+                                        porcentaje = (int) ((recibidos * 100) / tam);
+                                        System.out.println("\rRecibido el " + porcentaje + "% del archivo");
+                                    }
+                                    System.out.println("Archivo recibido...");
+                                    dos.close();
+                                    dis.close();
+                                    c2.close();
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
                         } else if (comando.toUpperCase().startsWith("GET")) {
-                            String nombreArchivo = comando.replace("GET ", "").trim();
-                            File archivo = new File(x2.getAbsolutePath() + "\\" + nombreArchivo);
-                            if (archivo.exists() && archivo.isFile()) {
-                                try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(archivo))) {
+                            String nombreArchivo = comando.replaceAll("(?i)GET ", "").trim();
+                            File rutaArchivo = new File(ruta_archivos + "\\" + nombreArchivo);
+
+                            // Verificar existencia del archivo
+                            if (!rutaArchivo.exists() || !rutaArchivo.isFile()) {
+                                out.println("550 Archivo no encontrado o no es válido");
+                                out.flush();
+                                return;
+                            }
+
+                            // Preparar transferencia
+                            out.println("150 Preparando para enviar " + nombreArchivo);
+                            out.flush();
+
+                            try {
+                                // Esperar conexión de datos del cliente (similar a PUT)
+                                System.out.println("Esperando conexión de datos en puerto 5001...");
+                                try (Socket c2 = s2.accept(); // Usamos el mismo ServerSocket que en PUT
+                                        DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
+                                        DataInputStream dis = new DataInputStream(new FileInputStream(rutaArchivo))) {
+
+                                    System.out.println("Conexión de datos establecida desde " + c2.getInetAddress());
+
+                                    // Enviar metadatos (nombre y tamaño)
+                                    dos.writeUTF(rutaArchivo.getName());
+                                    dos.writeLong(rutaArchivo.length());
+                                    dos.flush();
+
+                                    // Transferir archivo
                                     byte[] buffer = new byte[4096];
-                                    int bytesRead;
-                                    OutputStream outputStream = c1.getOutputStream();
-                                    while ((bytesRead = bis.read(buffer)) != -1) {
-                                        outputStream.write(buffer, 0, bytesRead);
+                                    long enviados = 0;
+                                    int bytesLeidos;
+                                    while ((bytesLeidos = dis.read(buffer)) != -1) {
+                                        dos.write(buffer, 0, bytesLeidos);
+                                        enviados += bytesLeidos;
+                                        int porcentaje = (int) ((enviados * 100) / rutaArchivo.length());
+                                        System.out.printf("\rEnviado %d%%", porcentaje);
                                     }
-                                    writer.println("Archivo " + nombreArchivo + " descargado correctamente.");
-                                } catch (IOException e) {
-                                    writer.println("Error al descargar el archivo " + nombreArchivo);
+
+                                    System.out.println("\nTransferencia completada");
+                                    out.println("226 Archivo enviado con éxito");
+                                    out.flush();
                                 }
-                            } else {
-                                writer.println("El archivo " + nombreArchivo + " no existe.");
+                            } catch (Exception e) {
+                                out.println("425 Error en transferencia: " + e.getMessage());
+                                out.flush();
+                                e.printStackTrace();
                             }
-                            writer.flush();
-                        } else if (comando.toUpperCase().startsWith("MGET")) {
-                            String[] archivos = comando.replace("MGET ", "").trim().split(" ");
-                            for (String nombreArchivo : archivos) {
-                                File archivo = new File(x2.getAbsolutePath() + "\\" + nombreArchivo);
-                                if (archivo.exists() && archivo.isFile()) {
-                                    try (BufferedInputStream bis = new BufferedInputStream(
-                                            new FileInputStream(archivo))) {
+                        }
+
+                        else if (comando.toUpperCase().startsWith("MGET")) {
+                            // Extraer la lista de archivos; se asume que están separados por espacios
+                            String archivosStr = comando.replaceAll("(?i)MGET ", "").trim();
+                            String[] listaArchivos = archivosStr.split("\\s+");
+
+                            // Procesar cada archivo en secuencia
+                            for (String nombreArchivo : listaArchivos) {
+                                File rutaArchivo = new File(ruta_archivos + "\\" + nombreArchivo);
+
+                                // Verificar existencia del archivo
+                                if (!rutaArchivo.exists() || !rutaArchivo.isFile()) {
+                                    out.println("550 Archivo " + nombreArchivo + " no encontrado o no es válido");
+                                    out.flush();
+                                    continue; // Saltar al siguiente archivo
+                                }
+
+                                // Enviar respuesta inicial para el archivo actual
+                                out.println("150 Preparando para enviar " + nombreArchivo);
+                                out.flush();
+
+                                try {
+                                    // Esperar conexión de datos para el archivo actual (similar a GET)
+                                    System.out.println(
+                                            "Esperando conexión de datos en puerto 5001 para " + nombreArchivo + "...");
+                                    try (Socket c2 = s2.accept();
+                                            DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
+                                            DataInputStream dis = new DataInputStream(
+                                                    new FileInputStream(rutaArchivo))) {
+
+                                        System.out.println("Conexión de datos establecida desde " + c2.getInetAddress()
+                                                + " para " + nombreArchivo);
+
+                                        // Enviar metadatos (nombre y tamaño)
+                                        dos.writeUTF(rutaArchivo.getName());
+                                        dos.writeLong(rutaArchivo.length());
+                                        dos.flush();
+
+                                        // Transferir el archivo
                                         byte[] buffer = new byte[4096];
-                                        int bytesRead;
-                                        OutputStream outputStream = c1.getOutputStream();
-                                        while ((bytesRead = bis.read(buffer)) != -1) {
-                                            outputStream.write(buffer, 0, bytesRead);
+                                        long enviados = 0;
+                                        int bytesLeidos;
+                                        while ((bytesLeidos = dis.read(buffer)) != -1) {
+                                            dos.write(buffer, 0, bytesLeidos);
+                                            enviados += bytesLeidos;
+                                            int porcentaje = (int) ((enviados * 100) / rutaArchivo.length());
+                                            System.out.printf("\rEnviado %d%% para %s", porcentaje, nombreArchivo);
                                         }
-                                        writer.println("Archivo " + nombreArchivo + " descargado correctamente.");
-                                    } catch (IOException e) {
-                                        writer.println("Error al descargar el archivo " + nombreArchivo);
+
+                                        System.out.println("\nTransferencia completada para " + nombreArchivo);
+                                        // Enviar confirmación final para el archivo actual
+                                        out.println("226 Archivo " + nombreArchivo + " enviado con éxito");
+                                        out.flush();
                                     }
-                                } else {
-                                    writer.println("El archivo " + nombreArchivo + " no existe.");
+                                } catch (Exception e) {
+                                    out.println(
+                                            "425 Error en transferencia de " + nombreArchivo + ": " + e.getMessage());
+                                    out.flush();
+                                    e.printStackTrace();
                                 }
                             }
-                            writer.flush();
                         } else {
                             System.out.println("502 Orden no implementada.");
-                            writer.println("502 Orden no implementada.");
-                            writer.flush();
+                            out.println("502 Orden no implementada.");
+                            out.flush();
                         }
                     }
                 }

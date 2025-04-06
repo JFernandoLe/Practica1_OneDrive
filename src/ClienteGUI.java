@@ -15,15 +15,14 @@ public class ClienteGUI {
     Scanner scanner = new Scanner(System.in);
     private JTextArea txtArea;
     private JTextField txtComando;
-    private PrintWriter writer;
-    private BufferedReader reader;
+    private PrintWriter out;
+    private BufferedReader in;
     private Socket c1; // Almacena el socket
     private File carpeta; // Carpeta local seleccionada
     private boolean estaEnLocal = true;
     private JTextArea listaDeComandos;
     private JTextField rutaField;
     private final File raizLocal;
-    private String dir = "127.0.0.1"; // Dirección del servidor
     String comandosCarpetaLocal = "Comandos aceptados:\n" +
             "CWD - Cambiar de carpeta local a servidor o viceversa\n" +
             "PWD - Directorio actual de la carpeta local\n" +
@@ -77,11 +76,10 @@ public class ClienteGUI {
 
         frame.setVisible(true);
         try {
-            int puerto = 21;
-            c1 = new Socket(dir, puerto); // Hacemos la conexión al socket
-            reader = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
-            writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
-            txtArea.append(reader.readLine() + "\n");
+            c1 = new Socket("127.0.0.1", 5000); // Hacemos la conexión al socket
+            in = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
+            out = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
+            txtArea.append(in.readLine() + "\n");
         } catch (IOException e) {
             txtArea.append("Error al conectar con el servidor\n");
         }
@@ -94,29 +92,27 @@ public class ClienteGUI {
             if (estaEnLocal) {
                 // Comando PUT
                 if (comando.toUpperCase().startsWith("PUT")) {
-                    String texto = comando.replaceAll("(?i)PUT ", "").trim(); // Elimina "PUT" y espacios extra
-                    System.out.println("|" + texto + "|");
-                    File f = new File(carpeta + "\\" + texto);
-                    if (!f.isFile()) {
-                        System.out.println("Se metio al condicional papi");
+                    String nombreArchivo = comando.replaceAll("(?i)PUT ", "").trim(); // Elimina "PUT" y espacios extra
+                    File rutaArchivo = new File(carpeta + "\\" + nombreArchivo);
+                    if (!rutaArchivo.isFile()) {
                         System.out.println(azul + "550 No se encontró el directorio" + reset);
 
                     } else {
-                        writer.println(comando); // Enviar comando al servidor
-                        writer.flush(); // Se envia de inmediato
+                        out.println(comando); // Enviar comando al servidor
+                        out.flush(); // Se envia de inmediato
                         try {
-                            System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
+                            System.out.println(azul + in.readLine() + reset); // Obtenemos la respuesta del comando
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
 
                         try {
-                            int puerto2 = 20;
-                            Socket c2 = new Socket(dir, puerto2);
+                            int puerto2 = 5001;
+                            Socket c2 = new Socket("127.0.0.1", puerto2);
                             System.out.println(azul + "Conexion con el socket de archivos");
-                            String nombre = f.getName();
-                            String path = f.getAbsolutePath();
-                            long tam = f.length();
+                            String nombre = rutaArchivo.getName();
+                            String path = rutaArchivo.getAbsolutePath();
+                            long tam = rutaArchivo.length();
                             System.out.println("Preparandose para enviar archivo: " + path + " de " + tam + " bytes\n");
                             DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
                             DataInputStream dis = new DataInputStream(new FileInputStream(path));
@@ -151,18 +147,18 @@ public class ClienteGUI {
                         if (!f.isFile()) {
                             System.out.println(azul + "550 No se encontró el archivo: " + archivo + reset);
                         } else {
-                            writer.println("PUT " + archivo.trim()); // Enviar comando al servidor
-                            writer.flush();
+                            out.println("PUT " + archivo.trim()); // Enviar comando al servidor
+                            out.flush();
                             try {
-                                System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del
-                                                                                      // comando
+                                System.out.println(azul + in.readLine() + reset); // Obtenemos la respuesta del
+                                                                                  // comando
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
 
                             try {
                                 int pto = 20;
-                                Socket c2 = new Socket(dir, pto);
+                                Socket c2 = new Socket("127.0.0.1", pto);
                                 System.out.println(azul + "Conexión con el socket de archivos establecida");
 
                                 String nombre = f.getName();
@@ -232,9 +228,7 @@ public class ClienteGUI {
                 } else if (comando.compareToIgnoreCase("QUIT") == 0) {
                     // Cerramos la conexion
                     System.out.println("Cerrando sesion...");
-                    writer.close();
-                    // reader.close();
-                    // c1.close();
+                    out.close();
                     System.exit(0);
                 } else if (comando.toUpperCase().startsWith("CD")) {
                     String nuevaRuta = comando.substring(3).trim();
@@ -260,49 +254,138 @@ public class ClienteGUI {
                     txtArea.append("Comando inválido en modo local.\n");
                 }
                 // Si estamos en la carpeta del server
-            } else {
-                if (comando.startsWith("GET") || comando.startsWith("MGET")) {
-                    // getFile(command);
-                } else if (Arrays.asList("PWD", "LS", "MKDIR", "CD", "DELETE").stream().anyMatch(comando::startsWith)) {
-                    new SwingWorker<Void, String>() {
-                        @Override
-                        protected Void doInBackground() throws Exception {
-                            writer.println(comando);
-                            writer.flush();
-                            if (comando.equalsIgnoreCase("LS")) {
-                                String line;
-                                while (!(line = reader.readLine()).equals("END_LIST")) {
-                                    publish(line);
+            } else if (Arrays.asList("CWD", "PWD", "LS", "MKDIR", "CD", "DELETE", "GET", "MGET", "QUIT")
+                    .stream().anyMatch(c -> comando.toUpperCase().startsWith(c))) {
+
+                new SwingWorker<Void, String>() {
+                    @Override
+                    protected Void doInBackground() throws Exception {
+                        // Enviar el comando al servidor
+                        out.println(comando);
+                        out.flush();
+
+                        if (comando.toUpperCase().startsWith("GET")) {
+                            String nombreArchivo = comando.replaceAll("(?i)GET ", "").trim();
+
+                            // Esperar la respuesta inicial del servidor
+                            String respuestaInicial = in.readLine();
+                            publish(respuestaInicial);
+                            if (!respuestaInicial.startsWith("150")) {
+                                publish("Error: El servidor no está listo para enviar el archivo");
+                                return null;
+                            }
+
+                            // Configurar conexión de datos
+                            try (Socket dataSocket = new Socket("127.0.0.1", 5001);
+                                    DataInputStream dis = new DataInputStream(dataSocket.getInputStream());
+                                    FileOutputStream fos = new FileOutputStream(new File(carpeta, nombreArchivo))) {
+
+                                // Recibir metadatos
+                                String nombreRecibido = dis.readUTF();
+                                long tamano = dis.readLong();
+                                publish("Recibiendo: " + nombreRecibido + " (" + tamano + " bytes)");
+
+                                // Recibir datos
+                                byte[] buffer = new byte[4096];
+                                long recibidos = 0;
+                                int bytesLeidos;
+                                while (recibidos < tamano && (bytesLeidos = dis.read(buffer)) != -1) {
+                                    fos.write(buffer, 0, bytesLeidos);
+                                    recibidos += bytesLeidos;
+                                    int porcentaje = (int) ((recibidos * 100) / tamano);
+                                    publish("Recibido: " + porcentaje + "%");
                                 }
-                            } else {
-                                publish(reader.readLine());
-                            }
-                            return null;
-                        }
 
-                        @Override
-                        protected void process(java.util.List<String> chunks) {
-                            for (String line : chunks) {
-                                txtArea.append(line + "\n");
+                                // Leer la confirmación final del servidor
+                                String finalResponse = in.readLine();
+                                publish(finalResponse.startsWith("226") ? "Descarga completada"
+                                        : "Error: " + finalResponse);
+                            } catch (Exception e) {
+                                publish("Error en transferencia: " + e.getMessage());
+                                e.printStackTrace();
                             }
-                        }
+                        } else if (comando.toUpperCase().startsWith("MGET")) {
+                            // Obtener los nombres de archivos; se asume que están separados por espacios
+                            String archivosStr = comando.replaceAll("(?i)MGET ", "").trim();
+                            String[] listaArchivos = archivosStr.split("\\s+");
 
-                        @Override
-                        protected void done() {
-                            if (comando.equalsIgnoreCase("QUIT")) {
-                                System.exit(0);
+                            // Procesar cada archivo en secuencia
+                            for (String nombreArchivo : listaArchivos) {
+                                publish("Iniciando descarga de: " + nombreArchivo);
+
+                                // Esperar la respuesta inicial del servidor para el archivo actual
+                                String respuestaInicial = in.readLine();
+                                publish(respuestaInicial);
+                                if (!respuestaInicial.startsWith("150")) {
+                                    publish("Error: El servidor no está listo para enviar el archivo " + nombreArchivo);
+                                    continue; // Saltamos este archivo y pasamos al siguiente
+                                }
+
+                                // Conexión de datos para el archivo actual
+                                try (Socket dataSocket = new Socket("127.0.0.1", 5001);
+                                        DataInputStream dis = new DataInputStream(dataSocket.getInputStream());
+                                        FileOutputStream fos = new FileOutputStream(new File(carpeta, nombreArchivo))) {
+
+                                    // Recibir metadatos
+                                    String nombreRecibido = dis.readUTF();
+                                    long tamano = dis.readLong();
+                                    publish("Recibiendo: " + nombreRecibido + " (" + tamano + " bytes)");
+
+                                    // Recibir datos
+                                    byte[] buffer = new byte[4096];
+                                    long recibidos = 0;
+                                    int bytesLeidos;
+                                    while (recibidos < tamano && (bytesLeidos = dis.read(buffer)) != -1) {
+                                        fos.write(buffer, 0, bytesLeidos);
+                                        recibidos += bytesLeidos;
+                                        int porcentaje = (int) ((recibidos * 100) / tamano);
+                                        publish("Recibido " + nombreRecibido + ": " + porcentaje + "%");
+                                    }
+
+                                    // Leer la confirmación final del servidor para este archivo
+                                    String finalResponse = in.readLine();
+                                    publish(finalResponse.startsWith("226")
+                                            ? "Descarga de " + nombreRecibido + " completada"
+                                            : "Error: " + finalResponse);
+                                } catch (Exception e) {
+                                    publish("Error en transferencia del archivo " + nombreArchivo + ": "
+                                            + e.getMessage());
+                                    e.printStackTrace();
+                                }
                             }
-                            txtComando.setText("");
+                        } else if (comando.equalsIgnoreCase("CWD")) {
+                            // Aquí va la lógica para "CWD", que se ejecutará si el comando es CWD
+                            // Actualiza la variable 'estaEnLocal' y las interfaces correspondientes
+                            estaEnLocal = true;
+                            rutaField.setText(carpeta.getAbsolutePath() + " >");
+                            listaDeComandos.setText(comandosCarpetaLocal);
+                        } else {
+                            // Procesar otros comandos, leyendo las respuestas hasta "END_LIST" si es
+                            // necesario
+                            String line;
+                            while ((line = in.readLine()) != null) {
+                                if (line.equals("END_LIST"))
+                                    break;
+                                publish(line);
+                            }
                         }
-                    }.execute();
-                } else if (comando.equals("CWD")) {
-                    estaEnLocal = true;
-                    rutaField.setText(carpeta.getAbsolutePath() + " >");
-                    listaDeComandos.setText(comandosCarpetaLocal);
-                } else {
-                    txtArea.append("Comando inválido en modo servidor.\n");
-                }
+                        return null;
+                    }
+
+                    @Override
+                    protected void process(java.util.List<String> chunks) {
+                        for (String line : chunks) {
+                            txtArea.append(line + "\n");
+                        }
+                    }
+
+                    @Override
+                    protected void done() {
+                        txtComando.setText("");
+                    }
+                }.execute();
             }
+
         }
     }
 
