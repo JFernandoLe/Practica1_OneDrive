@@ -66,9 +66,9 @@ public class Servidor {
 
                             List<String> resultados = listFiles(x2, "");
                             if (resultados != null && !resultados.isEmpty()) {
-                                System.out.println("Entro");
+                                // System.out.println("Entro");
                                 for (String linea : resultados) {
-                                    System.out.println(linea);
+                                    // System.out.println(linea);
                                     writer.println(linea);
                                     writer.flush();
                                 }
@@ -184,45 +184,6 @@ public class Servidor {
                                             + x2.getAbsolutePath().replace(f.getAbsolutePath(), ""));
                                     writer.flush();
                                 }
-                            }
-                        } else if (comando.toUpperCase().startsWith("PUT")) {
-                            writer.println("200: Cargando...");
-                            writer.flush();
-                            try {
-
-                                System.out.println("Servidor iniciado esperando archivos");
-                                for (;;) {
-                                    Socket c2 = s2.accept();
-                                    System.out.println("Cliente conectado al socket de datos desde "
-                                            + c2.getInetAddress() + ": " + c2.getPort());
-                                    DataInputStream dis = new DataInputStream(c2.getInputStream());
-                                    String nombre = dis.readUTF();
-                                    long tam = dis.readLong();
-                                    System.out.println("Comienza la descarga del archivo " + nombre + " de: " + tam
-                                            + " bytes\n\n");
-                                    DataOutputStream dos = new DataOutputStream(
-                                            new FileOutputStream(f2.getAbsolutePath() + "\\" + nombre));
-                                    long recibidos = 0;
-                                    int l = 0, porcentaje = 0;
-                                    while (recibidos < tam) {
-                                        System.out.println("entro");
-                                        byte[] b = new byte[3500];
-                                        l = dis.read(b);
-                                        System.out.println("Leidos " + l);
-                                        dos.write(b, 0, l);
-                                        dos.flush();
-                                        recibidos += l;
-                                        porcentaje = (int) ((recibidos * 100) / tam);
-                                        System.out.println("\rRecibido el " + porcentaje + "% del archivo");
-                                    }
-                                    System.out.println("Archivo recibido...");
-                                    dos.close();
-                                    dis.close();
-                                    c2.close();
-                                    break;
-                                }
-                            } catch (Exception e) {
-                                e.printStackTrace();
                             }
                         } else if (comando.toUpperCase().startsWith("GET")) {
                             String nombreArchivo = comando.replace("GET ", "").trim();

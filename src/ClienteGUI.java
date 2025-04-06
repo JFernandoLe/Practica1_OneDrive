@@ -22,12 +22,14 @@ public class ClienteGUI {
     private boolean estaEnLocal = true;
     private JTextArea listaDeComandos;
     private JTextField rutaField;
+    private final File raizLocal;
     private String dir = "127.0.0.1"; // Dirección del servidor
     String comandosCarpetaLocal = "Comandos aceptados:\n" +
             "CWD - Cambiar de carpeta local a servidor o viceversa\n" +
             "PWD - Directorio actual de la carpeta local\n" +
             "LS - Listar archivos en la carpeta local\n" +
             "MKDIR <nombre> - Crear directorio en la carpeta local\n" +
+            "CD <ruta> - Cambiar directorio en el servidor\n" +
             "DELETE <nombre> - Eliminar archivo en la carpeta local\n" +
             "PUT <archivo> - Subir archivo desde la carpeta local al servidor\n" +
             "MPUT <archivos> - Subir múltiples archivos desde la carpeta local al servidor\n" +
@@ -40,14 +42,13 @@ public class ClienteGUI {
             "MKDIR <nombre> - Crear directorio en el servidor\n" +
             "CD <ruta> - Cambiar directorio en el servidor\n" +
             "DELETE <nombre> - Eliminar archivo en el servidor\n" +
-            "PUT <archivo> - Subir archivo desde la carpeta local al servidor\n" +
-            "MPUT <archivos> - Subir múltiples archivos desde la carpeta local al servidor\n" +
             "GET <archivo> - Descargar archivo desde el servidor a la carpeta local\n" +
             "MGET <archivos> - Descargar múltiples archivos desde el servidor a la carpeta local\n" +
             "QUIT - Salir del servidor FTP";
 
     public ClienteGUI(File carpetaSeleccionada) {
         this.carpeta = carpetaSeleccionada;
+        this.raizLocal = carpetaSeleccionada;
         JFrame frame = new JFrame("ESCOMDRIVE");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(800, 600);
@@ -142,7 +143,7 @@ public class ClienteGUI {
                             e.printStackTrace();
                         }
                     }
-                }else if (comando.toUpperCase().startsWith("MPUT")) {
+                } else if (comando.toUpperCase().startsWith("MPUT")) {
                     String texto = comando.replaceAll("(?i)MPUT ", "").trim(); // Elimina "MPUT" y espacios extra
                     String[] archivos = texto.split(","); // Divide los nombres de archivos por comas
                     for (String archivo : archivos) {
@@ -152,12 +153,13 @@ public class ClienteGUI {
                         } else {
                             writer.println("PUT " + archivo.trim()); // Enviar comando al servidor
                             writer.flush();
-                            try{
-                                System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del comando
-                            }catch(Exception e){
+                            try {
+                                System.out.println(azul + reader.readLine() + reset); // Obtenemos la respuesta del
+                                                                                      // comando
+                            } catch (Exception e) {
                                 e.printStackTrace();
                             }
-                            
+
                             try {
                                 int pto = 20;
                                 Socket c2 = new Socket(dir, pto);
@@ -166,7 +168,8 @@ public class ClienteGUI {
                                 String nombre = f.getName();
                                 String path = f.getAbsolutePath();
                                 long tam = f.length();
-                                System.out.println("Preparándose para enviar archivo: " + path + " de " + tam + " bytes");
+                                System.out
+                                        .println("Preparándose para enviar archivo: " + path + " de " + tam + " bytes");
 
                                 DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
                                 DataInputStream dis = new DataInputStream(new FileInputStream(path));
@@ -226,6 +229,33 @@ public class ClienteGUI {
                     estaEnLocal = false;
                     rutaField.setText("drive >");
                     listaDeComandos.setText(comandosCarpetaServer);
+                } else if (comando.compareToIgnoreCase("QUIT") == 0) {
+                    // Cerramos la conexion
+                    System.out.println("Cerrando sesion...");
+                    writer.close();
+                    // reader.close();
+                    // c1.close();
+                    System.exit(0);
+                } else if (comando.toUpperCase().startsWith("CD")) {
+                    String nuevaRuta = comando.substring(3).trim();
+                    File nuevaCarpeta = new File(carpeta, nuevaRuta);
+
+                    try {
+                        File canonicalNueva = nuevaCarpeta.getCanonicalFile();
+                        File canonicalRaiz = raizLocal.getCanonicalFile();
+
+                        if (canonicalNueva.exists() && canonicalNueva.isDirectory()
+                                && canonicalNueva.getPath().startsWith(canonicalRaiz.getPath())) {
+                            carpeta = canonicalNueva;
+                            rutaField.setText(carpeta.getAbsolutePath() + " >");
+                            txtArea.append("Directorio cambiado a: " + carpeta.getAbsolutePath() + "\n");
+                        } else {
+                            txtArea.append("No se puede acceder a esa carpeta. Está fuera del directorio raíz.\n");
+                        }
+                    } catch (IOException e) {
+                        txtArea.append("Error al cambiar de directorio.\n");
+                        e.printStackTrace();
+                    }
                 } else {
                     txtArea.append("Comando inválido en modo local.\n");
                 }
