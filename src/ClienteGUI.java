@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class ClienteGUI {
     String rojo = "\u001B[31m";
@@ -76,7 +79,7 @@ public class ClienteGUI {
 
         frame.setVisible(true);
         try {
-            c1 = new Socket("127.0.0.1", 5000); // Hacemos la conexión al socket
+            c1 = new Socket("127.0.0.1", 20); // Hacemos la conexión al socket
             in = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
             out = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
             txtArea.append(in.readLine() + "\n");
@@ -92,27 +95,38 @@ public class ClienteGUI {
             if (estaEnLocal) {
                 // Comando PUT
                 if (comando.toUpperCase().startsWith("PUT")) {
-                    String nombreArchivo = comando.replaceAll("(?i)PUT ", "").trim(); // Elimina "PUT" y espacios extra
+                    String nombreArchivo = comando.replaceAll("(?i)PUT ", "").trim();
                     File rutaArchivo = new File(carpeta + "\\" + nombreArchivo);
-                    if (!rutaArchivo.isFile()) {
-                        System.out.println(azul + "550 No se encontró el directorio" + reset);
 
+                    if (!rutaArchivo.exists()) {
+                        System.out.println(azul + "550 No se encontró el archivo o carpeta" + reset);
                     } else {
-                        out.println(comando); // Enviar comando al servidor
-                        out.flush(); // Se envia de inmediato
+                        out.println(comando);
+                        out.flush();
                         try {
-                            System.out.println(azul + in.readLine() + reset); // Obtenemos la respuesta del comando
-                        } catch (Exception e) {
+                            System.out.println(azul + in.readLine() + reset);
+                        } catch (IOException e) {
                             e.printStackTrace();
                         }
 
                         try {
-                            int puerto2 = 5001;
+                            int puerto2 = 21;
                             Socket c2 = new Socket("127.0.0.1", puerto2);
-                            System.out.println(azul + "Conexion con el socket de archivos");
-                            String nombre = rutaArchivo.getName();
-                            String path = rutaArchivo.getAbsolutePath();
-                            long tam = rutaArchivo.length();
+                            System.out.println(azul + "Conectado al socket de archivos");
+
+                            File archivoAEnviar;
+                            if (rutaArchivo.isDirectory()) {
+                                // Comprimir carpeta
+                                archivoAEnviar = new File(".zip");
+                                comprimirCarpeta(rutaArchivo, archivoAEnviar);
+                            } else {
+                                archivoAEnviar = rutaArchivo;
+                            }
+
+                            String nombre = archivoAEnviar.getName();
+                            String path = archivoAEnviar.getAbsolutePath();
+                            long tam = archivoAEnviar.length();
+
                             System.out.println("Preparandose para enviar archivo: " + path + " de " + tam + " bytes\n");
                             DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
                             DataInputStream dis = new DataInputStream(new FileInputStream(path));
@@ -120,6 +134,7 @@ public class ClienteGUI {
                             dos.flush();
                             dos.writeLong(tam);
                             dos.flush();
+
                             long enviados = 0;
                             int l = 0, porcentaje = 0;
                             while (enviados < tam) {
@@ -127,75 +142,108 @@ public class ClienteGUI {
                                 l = dis.read(b);
                                 dos.write(b, 0, l);
                                 dos.flush();
-                                enviados = enviados + l;
+                                enviados += l;
                                 porcentaje = (int) ((enviados * 100) / tam);
-                                System.out.println("\rEnviado el " + porcentaje + "% del archivo");
+                                System.out.print("\rEnviado el " + porcentaje + "% del archivo");
                             }
                             System.out.println("\nArchivo enviado" + reset);
                             dis.close();
                             dos.close();
                             c2.close();
+
+                            // Si fue una carpeta, eliminar el .zip temporal
+                            if (rutaArchivo.isDirectory()) {
+                                archivoAEnviar.delete();
+                            }
+
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
                 } else if (comando.toUpperCase().startsWith("MPUT")) {
-                    String texto = comando.replaceAll("(?i)MPUT ", "").trim(); // Elimina "MPUT" y espacios extra
-                    String[] archivos = texto.split(","); // Divide los nombres de archivos por comas
-                    for (String archivo : archivos) {
-                        File f = new File(carpeta + "\\" + archivo.trim());
-                        if (!f.isFile()) {
-                            System.out.println(azul + "550 No se encontró el archivo: " + archivo + reset);
-                        } else {
-                            out.println("PUT " + archivo.trim()); // Enviar comando al servidor
-                            out.flush();
+                    // 1) Obtenemos la lista de archivos, separando por comas o espacios
+                    String texto = comando.replaceAll("(?i)MPUT ", "").trim();
+                    String[] archivos = texto.split("[,\\s]+");
+                
+                    for (String nombreArchivo : archivos) {
+                        nombreArchivo = nombreArchivo.trim();
+                        File rutaArchivo = new File(carpeta, nombreArchivo);
+                
+                        // 2) Verificamos existencia
+                        if (!rutaArchivo.exists()) {
+                            System.out.println("La ruta es: " + rutaArchivo.getAbsolutePath());
+                            System.out.println(azul + "550 No se encontró el archivo o carpeta: "
+                                + nombreArchivo + reset);
+                            continue;
+                        }
+                
+                        // 3) Enviamos al servidor el comando PUT con la ruta absoluta
+                        out.println("PUT " + rutaArchivo.getAbsolutePath());
+                        out.flush();
+                        try {
+                            System.out.println(azul + in.readLine() + reset);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            continue;
+                        }
+                
+                        // 4) Preparamos el archivo o carpeta (comprimir si es carpeta)
+                        File archivoAEnviar = rutaArchivo;
+                        File zipTemporal = null;
+                        if (rutaArchivo.isDirectory()) {
+                            zipTemporal = new File(carpeta,
+                                nombreArchivo + "_" + System.currentTimeMillis() + ".zip");
                             try {
-                                System.out.println(azul + in.readLine() + reset); // Obtenemos la respuesta del
-                                                                                  // comando
-                            } catch (Exception e) {
+                                comprimirCarpeta(rutaArchivo, zipTemporal);
+                                archivoAEnviar = zipTemporal;
+                            } catch (IOException e) {
                                 e.printStackTrace();
+                                continue;
                             }
-
-                            try {
-                                int pto = 20;
-                                Socket c2 = new Socket("127.0.0.1", pto);
-                                System.out.println(azul + "Conexión con el socket de archivos establecida");
-
-                                String nombre = f.getName();
-                                String path = f.getAbsolutePath();
-                                long tam = f.length();
-                                System.out
-                                        .println("Preparándose para enviar archivo: " + path + " de " + tam + " bytes");
-
-                                DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
-                                DataInputStream dis = new DataInputStream(new FileInputStream(path));
-
-                                dos.writeUTF(nombre);
+                        }
+                
+                        // 5) Abrimos socket de datos y enviamos bytes
+                        try (Socket c2 = new Socket("127.0.0.1", 21);
+                             DataOutputStream dos = new DataOutputStream(c2.getOutputStream());
+                             DataInputStream dis = new DataInputStream(
+                                 new FileInputStream(archivoAEnviar))) {
+                
+                            System.out.println(azul + "Conectado al socket de archivos" + reset);
+                            String nombreFinal = archivoAEnviar.getName();
+                            long tam = archivoAEnviar.length();
+                            System.out.println("Preparándose para enviar: "
+                                + archivoAEnviar.getAbsolutePath() + " (" + tam + " bytes)");
+                
+                            dos.writeUTF(nombreFinal);
+                            dos.flush();
+                            dos.writeLong(tam);
+                            dos.flush();
+                
+                            byte[] buffer = new byte[4096];
+                            long enviados = 0;
+                            int leidos;
+                            while ((leidos = dis.read(buffer)) != -1) {
+                                dos.write(buffer, 0, leidos);
                                 dos.flush();
-                                dos.writeLong(tam);
-                                dos.flush();
-
-                                long enviados = 0;
-                                int l = 0, porcentaje = 0;
-                                byte[] buffer = new byte[3500];
-
-                                while (enviados < tam) {
-                                    l = dis.read(buffer);
-                                    dos.write(buffer, 0, l);
-                                    dos.flush();
-                                    enviados += l;
-                                    porcentaje = (int) ((enviados * 100) / tam);
-                                }
-                                System.out.println("Archivo " + nombre + " enviado con éxito\n" + reset);
-                                dis.close();
-                                dos.close();
-                                c2.close();
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                                enviados += leidos;
+                                int pct = (int)((enviados * 100) / tam);
+                                System.out.print("\rEnviado " + pct + "% de " + nombreFinal);
+                            }
+                            System.out.println("\nArchivo " + nombreFinal + " enviado con éxito\n" + reset);
+                
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        } finally {
+                            // 6) Borramos ZIP temporal si existió
+                            if (zipTemporal != null && zipTemporal.exists()) {
+                                zipTemporal.delete();
                             }
                         }
                     }
-                } else if (comando.equalsIgnoreCase("LS")) {
+                }
+                
+                
+                else if (comando.equalsIgnoreCase("LS")) {
                     txtArea.append("---------- Listando archivos y carpetas (LOCAL) ----------\n");
                     listLocalFiles();
                 } else if (comando.equalsIgnoreCase("PWD")) {
@@ -265,8 +313,8 @@ public class ClienteGUI {
                         out.flush();
 
                         if (comando.toUpperCase().startsWith("GET")) {
-                            String nombreArchivo = comando.replaceAll("(?i)GET ", "").trim();
-
+                            String nombreComando = comando.replaceAll("(?i)GET ", "").trim();
+                        
                             // Esperar la respuesta inicial del servidor
                             String respuestaInicial = in.readLine();
                             publish(respuestaInicial);
@@ -274,32 +322,48 @@ public class ClienteGUI {
                                 publish("Error: El servidor no está listo para enviar el archivo");
                                 return null;
                             }
-
-                            // Configurar conexión de datos
-                            try (Socket dataSocket = new Socket("127.0.0.1", 5001);
-                                    DataInputStream dis = new DataInputStream(dataSocket.getInputStream());
-                                    FileOutputStream fos = new FileOutputStream(new File(carpeta, nombreArchivo))) {
-
-                                // Recibir metadatos
+                        
+                            try (Socket dataSocket = new Socket("127.0.0.1", 21);
+                                 DataInputStream dis = new DataInputStream(dataSocket.getInputStream())) {
+                        
+                                // Primero recibes el nombre y el tamaño
                                 String nombreRecibido = dis.readUTF();
                                 long tamano = dis.readLong();
                                 publish("Recibiendo: " + nombreRecibido + " (" + tamano + " bytes)");
-
-                                // Recibir datos
-                                byte[] buffer = new byte[4096];
-                                long recibidos = 0;
-                                int bytesLeidos;
-                                while (recibidos < tamano && (bytesLeidos = dis.read(buffer)) != -1) {
-                                    fos.write(buffer, 0, bytesLeidos);
-                                    recibidos += bytesLeidos;
-                                    int porcentaje = (int) ((recibidos * 100) / tamano);
-                                    publish("Recibido: " + porcentaje + "%");
+                        
+                                // Guardar con el nombre que te manda el servidor
+                                File archivoDestino = new File(carpeta, nombreRecibido);
+                                try (FileOutputStream fos = new FileOutputStream(archivoDestino)) {
+                        
+                                    byte[] buffer = new byte[4096];
+                                    long recibidos = 0;
+                                    int bytesLeidos;
+                                    while (recibidos < tamano && (bytesLeidos = dis.read(buffer)) != -1) {
+                                        fos.write(buffer, 0, bytesLeidos);
+                                        recibidos += bytesLeidos;
+                                        int porcentaje = (int) ((recibidos * 100) / tamano);
+                                        publish("Recibido: " + porcentaje + "%");
+                                    }
                                 }
-
-                                // Leer la confirmación final del servidor
+                        
+                                // Leer confirmación final del servidor
                                 String finalResponse = in.readLine();
-                                publish(finalResponse.startsWith("226") ? "Descarga completada"
-                                        : "Error: " + finalResponse);
+                                publish(finalResponse.startsWith("226") ? "Descarga completada" : "Error: " + finalResponse);
+                        
+                                // Si es ZIP, descomprimir
+                                if (nombreRecibido.toLowerCase().endsWith(".zip")) {
+                                    File carpetaDestino = new File(carpeta, nombreRecibido.replaceAll("(?i)\\.zip$", ""));
+                                    carpetaDestino.mkdirs();
+                                    try {
+                                        descomprimirZip(archivoDestino, carpetaDestino);
+                                        archivoDestino.delete(); // opcional
+                                        publish("Carpeta descomprimida en: " + carpetaDestino.getAbsolutePath());
+                                    } catch (IOException e) {
+                                        publish("Error al descomprimir: " + e.getMessage());
+                                        e.printStackTrace();
+                                    }
+                                }
+                        
                             } catch (Exception e) {
                                 publish("Error en transferencia: " + e.getMessage());
                                 e.printStackTrace();
@@ -322,9 +386,10 @@ public class ClienteGUI {
                                 }
 
                                 // Conexión de datos para el archivo actual
-                                try (Socket dataSocket = new Socket("127.0.0.1", 5001);
+                                File archivoDestino = new File(carpeta, nombreArchivo);
+                                try (Socket dataSocket = new Socket("127.0.0.1", 21);
                                         DataInputStream dis = new DataInputStream(dataSocket.getInputStream());
-                                        FileOutputStream fos = new FileOutputStream(new File(carpeta, nombreArchivo))) {
+                                        FileOutputStream fos = new FileOutputStream(archivoDestino)) {
 
                                     // Recibir metadatos
                                     String nombreRecibido = dis.readUTF();
@@ -440,4 +505,56 @@ public class ClienteGUI {
             new ClienteGUI(carpetaSeleccionada);
         });
     }
+
+    // Método para comprimir carpeta
+    public static void comprimirCarpeta(File carpeta, File zipFile) throws IOException {
+        try (FileOutputStream fos = new FileOutputStream(zipFile);
+                ZipOutputStream zos = new ZipOutputStream(fos)) {
+            comprimir(carpeta, carpeta.getName(), zos);
+        }
+    }
+
+    private static void comprimir(File file, String nombre, ZipOutputStream zos) throws IOException {
+        if (file.isDirectory()) {
+            File[] archivos = file.listFiles();
+            if (archivos != null) {
+                for (File archivo : archivos) {
+                    comprimir(archivo, nombre + "/" + archivo.getName(), zos);
+                }
+            }
+        } else {
+            try (FileInputStream fis = new FileInputStream(file)) {
+                ZipEntry zipEntry = new ZipEntry(nombre);
+                zos.putNextEntry(zipEntry);
+                byte[] buffer = new byte[4096];
+                int len;
+                while ((len = fis.read(buffer)) > 0) {
+                    zos.write(buffer, 0, len);
+                }
+            }
+        }
+    }
+
+    public static void descomprimirZip(File archivoZip, File destino) throws IOException {
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(archivoZip))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                File nuevoArchivo = new File(destino, entry.getName());
+                if (entry.isDirectory()) {
+                    nuevoArchivo.mkdirs();
+                } else {
+                    nuevoArchivo.getParentFile().mkdirs();
+                    try (FileOutputStream fos = new FileOutputStream(nuevoArchivo)) {
+                        byte[] buffer = new byte[4096];
+                        int len;
+                        while ((len = zis.read(buffer)) > 0) {
+                            fos.write(buffer, 0, len);
+                        }
+                    }
+                }
+                zis.closeEntry();
+            }
+        }
+    }
+
 }

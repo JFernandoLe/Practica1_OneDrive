@@ -13,7 +13,7 @@ public class Cliente {
         Scanner scanner = new Scanner(System.in);
         try {
             String dir = "127.0.0.1"; // Direccion del servidor
-            int puerto = 21;// Puerto de control para FTP
+            int puerto = 20;// Puerto de control para FTP
             Socket c1 = new Socket(dir, puerto); // Hacemos la conexion al Socket
             BufferedReader reader = new BufferedReader(new InputStreamReader(c1.getInputStream(), "ISO-8859-1"));
             PrintWriter writer = new PrintWriter(new OutputStreamWriter(c1.getOutputStream(), "ISO-8859-1"));
