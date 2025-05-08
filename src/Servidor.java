@@ -28,7 +28,6 @@ public class Servidor {
             servidor.setReuseAddress(true); // la forma correcta para ServerSocket
             System.out.println("Servidor iniciado en el puerto " + servidor.getLocalPort());
 
-            // Verificar y crear carpeta del servidor
             File carpetaServidor = new File("drive");
             File carpetaServidorRutaAbsoluta = carpetaServidor.getAbsoluteFile();
 
@@ -172,7 +171,7 @@ public class Servidor {
 
                             File archivoAEnviar;
                             if (rutaArchivoODirectorioAEnviar.isDirectory()) {
-                                // Comprime la carpeta para enviarla
+                                
                                 archivoAEnviar = new File(".zip");
                                 comprimirCarpeta(rutaArchivoODirectorioAEnviar, archivoAEnviar);
                             } else {
@@ -187,16 +186,16 @@ public class Servidor {
 
                             System.out.println("Enviando metadatos para el archivo: " + path + " de " + tam + " bytes");
 
-                            // Crea un DataOutputStream para enviar datos por el socket
+                            
                             DataOutputStream dos = new DataOutputStream(socketDatos.getOutputStream());
-                            // Envía el nombre y tamaño del archivo
+                            
                             dos.writeUTF(nombre);
                             dos.flush();
                             dos.writeLong(tam);
                             dos.flush();
                             String respuesta = reader.readLine();
                             if (respuesta.equals("ListoParaRecibir")) {
-                                // Envía el contenido del archivo
+                               
                                 DataInputStream dis = new DataInputStream(new FileInputStream(path));
                                 long enviados = 0;
                                 int l = 0, porcentaje = 0;
@@ -224,34 +223,31 @@ public class Servidor {
                             serverSocketEnviarDatos.close();
                         }
                     } else if (comando.toUpperCase().startsWith("MGET")) {
-                        // Separa las rutas enviadas después de "MGET"
                         String[] rutas = comando.substring(5).trim().split("\\s+");
 
-                        // Notifica que se está listo para enviar archivos
+
                         writer.println("Listo");
                         writer.flush();
 
-                        // Envía al cliente el número total de archivos/carpetas a transferir
+
                         writer.println(rutas.length);
                         writer.flush();
 
-                        // Itera en cada ruta
+
                         for (String rutaRelative : rutas) {
                             File rutaArchivoODirectorioAEnviar = new File(carpetaServidor, rutaRelative);
 
-                            // Verifica existencia; si no existe, se podría enviar un error
+
                             if (!rutaArchivoODirectorioAEnviar.exists()) {
                                 writer.println("550");
                                 writer.flush();
                                 System.out.println("No se encontró " + rutaRelative);
                                 continue; // Se salta este archivo y se continúa con el siguiente
                             } else {
-                                // Notifica que se continuará con este archivo
                                 writer.println("OK");
                                 writer.flush();
                             }
 
-                            // Abre el ServerSocket para la transferencia de este archivo
                             try {
                                 ServerSocket serverSocketEnviarDatos = new ServerSocket(5000);
                                 System.out.println("Servidor esperando conexión de datos para " + rutaRelative
@@ -260,7 +256,7 @@ public class Servidor {
                                 writer.println("Listo");
                                 writer.flush();
 
-                                // Espera la conexión del cliente en el socket
+                                
                                 Socket socketDatos = serverSocketEnviarDatos.accept();
 
                                 File archivoAEnviar;
