@@ -13,8 +13,8 @@ public class Servidor {
     public static void main(String[] args) {
         try {
             int puertoFTP = 21;
-            ServerSocketChannel servidor = ServerSocketChannel.open();
-            servidor.bind(new InetSocketAddress(puertoFTP));
+            ServerSocketChannel servidor = ServerSocketChannel.open(); // Crear un canal de socket del servidor
+            servidor.bind(new InetSocketAddress(puertoFTP)); // Vincular al puerto 21, bind especifica la dirección y el puerto
             servidor.configureBlocking(false);  // no bloqueante para aceptar clientes
 
             System.out.println("Servidor iniciado en el puerto " + puertoFTP);
@@ -22,33 +22,36 @@ public class Servidor {
             File carpetaServidor = new File("drive");
             if (!carpetaServidor.exists()) {
                 carpetaServidor.mkdirs();
-                System.out.println("Carpeta creada");
+                System.out.println("Carpeta crea    da");
             }
 
-            while (true) {
-                SocketChannel socketCliente = servidor.accept();
-                if (socketCliente != null) {
+            while (true) { // Bucle principal del servidor
+                // Aceptar conexiones de clientes
+                SocketChannel socketCliente = servidor.accept(); // Aceptar una conexión entrante
+                if (socketCliente != null) { // Si hay un cliente conectado
+                    // Configurar el canal del cliente
                     System.out.println("Cliente conectado: " + socketCliente.getRemoteAddress());
                     socketCliente.configureBlocking(true);  // ponemos el canal del cliente en bloqueante (simplifica)
 
                     // Streams para leer y escribir
-                    InputStream in = socketCliente.socket().getInputStream();
-                    OutputStream out = socketCliente.socket().getOutputStream();
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(in, "ISO-8859-1"));
-                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, "ISO-8859-1"), true);
+                    InputStream in = socketCliente.socket().getInputStream(); // InputStream para leer datos del cliente
+                    OutputStream out = socketCliente.socket().getOutputStream(); // OutputStream para enviar datos al cliente
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(in, "ISO-8859-1")); // BufferedReader para leer líneas de texto
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(out, "ISO-8859-1"), true); // PrintWriter para escribir líneas de texto
 
                     // Mensaje bienvenida
                     writer.println("Bienvenido a EscomDrive");
 
-                    while (true) {
+                    while (true) { // Bucle para manejar comandos del cliente
+                        // Leer comando del cliente
                         String comando = reader.readLine();
                         if (comando == null) break;  // Cliente se desconectó
                         System.out.println("Comando recibido: " + comando);
 
-                        if (comando.toUpperCase().startsWith("PUT")) {
-                            ServerSocketChannel serverDatos = ServerSocketChannel.open();
-                            serverDatos.bind(new InetSocketAddress(5000));
-                            serverDatos.configureBlocking(true);
+                        if (comando.toUpperCase().startsWith("PUT")) { // Comando PUT para subir archivos
+                            ServerSocketChannel serverDatos = ServerSocketChannel.open(); // Crear un canal de socket del servidor para datos
+                            serverDatos.bind(new InetSocketAddress(5000)); // Vincular al puerto 5000 para la transferencia de datos
+                            serverDatos.configureBlocking(true); // Configurar el canal de datos en bloqueante
 
                             writer.println("Listo");
 
